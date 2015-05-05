@@ -1,0 +1,4 @@
+---
+:enabled: false
+# :ssh_identity_key: '~/.vagrant.d/insecure_private_key'
+# :ssh_user: 'root'
