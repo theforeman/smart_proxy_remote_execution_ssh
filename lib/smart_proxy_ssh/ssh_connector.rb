@@ -10,7 +10,8 @@ module Proxy::Ssh
     Command = Algebrick.type do
       fields!(id: String,
               host: String,
-              user: String,
+              ssh_user: String,
+              effective_user: String,
               script: String,
               suspended_action: Object)
     end
@@ -26,14 +27,6 @@ module Proxy::Ssh
 
     # message causing waiting for more output
     Wait = Algebrick.atom
-
-    def self.initialize(dynflow_world)
-      @instance = self.new(dynflow_world)
-    end
-
-    def self.instance
-      @instance
-    end
 
     def initialize(dynflow_world, logger = Logger.new(STDERR), *args)
       super(logger)
@@ -59,8 +52,8 @@ module Proxy::Ssh
       end
     end
 
-    def run_script(id, host, user, script, suspended_action)
-      self << Command[id, host, user, script, suspended_action]
+    def run_script(id, host, ssh_user, effective_user, script, suspended_action)
+      self << Command[id, host, ssh_user, effective_user, script, suspended_action]
     end
 
     def on_message(message)
@@ -82,7 +75,7 @@ module Proxy::Ssh
 
     def initialize_command(command)
       logger.debug("initalizing command [#{command}]")
-      session = session(command.host, command.user)
+      session = session(command.host, command.ssh_user)
       started = false
       session.open_channel do |channel|
         channel.on_data do |ch, data|
@@ -116,7 +109,7 @@ module Proxy::Ssh
     end
 
     def clear_command(command)
-      close_session_if_inactive(command.host, command.user)
+      close_session_if_inactive(command.host, command.ssh_user)
       @command_buffer.delete(command)
     end
 

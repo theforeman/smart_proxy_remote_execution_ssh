@@ -1,5 +1,5 @@
 module Proxy::Ssh
-  class Command < Dynflow::Action
+  class Command < ::Dynflow::Action
 
     include Algebrick::Matching
 
@@ -8,11 +8,11 @@ module Proxy::Ssh
             on(nil) do
               init_run
             end,
-            on(~SshConnector::ProcessUpdate) do |process_update|
-              output[:result] << process_update[:lines] unless process_update[:lines].empty?
+            on(~SshConnector::CommandUpdate) do |update|
+              output[:result].concat(update.output)
 
-              if process_update[:exit_status]
-                output[:exit_status] = process_update[:exit_status]
+              if update.exit_status
+                output[:exit_status] = update.exit_status
               else
                 suspend
               end
@@ -20,14 +20,15 @@ module Proxy::Ssh
     end
 
     def init_run
-      output[:result] = ""
+      output[:result] = []
       suspend do |suspended_action|
-        SshConnector.instance.run_cmd(cmd, suspended_action)
+        Proxy::Ssh.ssh_connector.run_script(input[:id],
+                                            input[:host],
+                                            'root',
+                                            input[:effective_user],
+                                            input[:script],
+                                            suspended_action)
       end
-    end
-
-    def cmd
-      input[:cmd]
     end
   end
 end

@@ -6,9 +6,9 @@ module Proxy::Ssh
       content_type :json
     end
 
-    get "/hello" do
-      logger.debug "hello from ssh plugin"
-      "Hello from ssh plugin"
+    post "/command" do
+      command = parse_json_body
+      Proxy::Ssh.dynflow.world.trigger(Command, command)
     end
 
   end
