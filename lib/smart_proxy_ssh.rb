@@ -7,6 +7,8 @@ require 'smart_proxy_ssh/dynflow'
 require 'smart_proxy_ssh/plugin'
 require 'smart_proxy_ssh/api'
 
+require 'smart_proxy_ssh/ssh_connector'
+
 module Proxy::Ssh
 
   def self.dynflow
