@@ -25,7 +25,7 @@ module Proxy::Ssh
     end
 
     def logger_adapter
-      ::Dynflow::LoggerAdapters::Simple.new $stderr, 2
+      ::Dynflow::LoggerAdapters::Simple.new $stderr, 1
     end
 
 

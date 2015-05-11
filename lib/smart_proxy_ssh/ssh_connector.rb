@@ -28,7 +28,7 @@ module Proxy::Ssh
     # message causing waiting for more output
     Wait = Algebrick.atom
 
-    def initialize(dynflow_world, logger = Logger.new(STDERR), *args)
+    def initialize(dynflow_world, logger = dynflow_world.logger, *args)
       super(logger)
       @dynflow_world = dynflow_world
       @command_buffer = Hash.new { |h, k| h[k] = [] }
