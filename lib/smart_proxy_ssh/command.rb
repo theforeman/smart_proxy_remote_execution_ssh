@@ -22,12 +22,12 @@ module Proxy::Ssh
     def init_run
       output[:result] = []
       suspend do |suspended_action|
-        Proxy::Ssh.ssh_connector.run_script(input[:id],
-                                            input[:host],
-                                            'root',
-                                            input[:effective_user],
-                                            input[:script],
-                                            suspended_action)
+        Proxy::Ssh.run_script(input[:id],
+                              input[:host],
+                              'root',
+                              input[:effective_user],
+                              input[:script],
+                              suspended_action)
       end
     end
   end
