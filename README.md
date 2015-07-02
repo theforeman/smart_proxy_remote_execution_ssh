@@ -8,7 +8,6 @@ This a plugin for foreman smart-proxy allowing using ssh for the
 Add this line to your smart proxy bundler.d/ssh.rb gemfile:
 
 ```ruby
-gem 'dynflow', :git => 'https://github.com/iNecas/dynflow.git', :branch => 'multi-executor-refactor'
 gem 'smart_proxy_dynflow', :git => 'https://github.com/iNecas/smart_proxy_dynflow.git'
 gem 'smart_proxy_ssh', :git => 'https://github.com/iNecas/smart_proxy_ssh.git'
 ```
