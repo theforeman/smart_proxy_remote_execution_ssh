@@ -9,7 +9,7 @@ module Proxy::Ssh
               init_run
             end,
             on(~SshConnector::CommandUpdate) do |update|
-              output[:result].concat(update.output)
+              output[:result].concat(update.buffer_to_hash)
 
               if update.exit_status
                 output[:exit_status] = update.exit_status

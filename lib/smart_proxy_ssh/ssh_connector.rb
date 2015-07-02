@@ -16,10 +16,26 @@ module Proxy::Ssh
               suspended_action: Object)
     end
 
+    BufferItem = Algebrick.type do
+      fields!(output_type: type { variants(Stdout = atom, Stderr = atom, Status = atom, Error = atom) },
+              output:      Object,
+              timestamp:   Float)
+    end
+
     # event sent to the action with the update data
     CommandUpdate = Algebrick.type do
-      fields!(output:       Array,
+      fields!(buffer: Array,
               exit_status: type { variants(NilClass, Integer) } )
+    end
+
+    module CommandUpdate
+      def buffer_to_hash
+        self.buffer.map do |buffer_item|
+          { output_type: buffer_item.output_type.name.split('::').last,
+            output: buffer_item.output,
+            timestamp: buffer_item.timestamp }
+        end
+      end
     end
 
     def initialize(dynflow_world, logger = dynflow_world.logger)
@@ -39,16 +55,16 @@ module Proxy::Ssh
       started = false
       session.open_channel do |channel|
         channel.on_data do |ch, data|
-          command_buffer(command) << [:stdout, data]
+          command_buffer(command) << BufferItem[Stdout, data, Time.now.to_f]
         end
 
         channel.on_extended_data do |ch, type, data|
-          command_buffer(command) << [:stderr, data]
+          command_buffer(command) << BufferItem[Stderr, data, Time.now.to_f]
         end
 
         channel.on_request("exit-status") do |ch, data|
           status        = data.read_long
-          command_buffer(command) << [:status, status]
+          command_buffer(command) << BufferItem[Status, status, Time.now.to_f]
         end
 
         channel.on_request("exit-signal") do |ch, data|
@@ -59,8 +75,8 @@ module Proxy::Ssh
           started = true
           @logger.debug("command [#{command}] started")
           unless success
-            command_buffer(command).concat([[:error, "FAILED: couldn't execute command (ssh.channel.exec)"],
-                                            [:status, -1]])
+            command_buffer(command).concat([BufferItem[Error, "FAILED: couldn't execute command (ssh.channel.exec)", Time.now.to_f],
+                                            BufferItem[Status, -1, Time.now.to_f]])
           end
         end
       end
@@ -78,23 +94,23 @@ module Proxy::Ssh
       @command_buffer.each do |command, buffer|
         unless buffer.empty?
           status = nil
-          buffer.delete_if do |(type, data)|
-            if type == :status
-              status = data
+          buffer.delete_if do |data|
+            if data[:output_type] == Status
+              status = data[:output]
               true
             end
           end
           @logger.debug("command #{command} got new output: #{buffer.inspect}")
-          command.suspended_action << CommandUpdate[buffer.dup, status]
+          command.suspended_action << CommandUpdate[buffer, status]
           if status
             @logger.debug("command [#{command}] finished with status #{status}")
             finished_commands << command
           end
-          buffer.clear
+          clear_command(command)
         end
       end
 
-      finished_commands.each { |command| clear_command(command) }
+      finished_commands.each { |command| finish_command(command) }
 
       @refresh_planned = false
       plan_next_refresh
@@ -120,8 +136,12 @@ module Proxy::Ssh
     end
 
     def clear_command(command)
-      close_session_if_inactive(command.host, command.ssh_user)
+      @command_buffer[command] = []
+    end
+
+    def finish_command(command)
       @command_buffer.delete(command)
+      close_session_if_inactive(command.host, command.ssh_user)
     end
 
     def refresh_command(command)
