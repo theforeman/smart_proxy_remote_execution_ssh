@@ -52,6 +52,9 @@ module Proxy::Ssh
     def initialize_command(command)
       @logger.debug("initalizing command [#{command}]")
       session = session(command.host, command.ssh_user)
+      remote_script = cp_script_to_remote(session, command)
+      output_path = File.join(File.dirname(remote_script), 'output')
+
       started = false
       session.open_channel do |channel|
         channel.on_data do |ch, data|
@@ -65,15 +68,21 @@ module Proxy::Ssh
         channel.on_request("exit-status") do |ch, data|
           status        = data.read_long
           command_buffer(command) << BufferItem[Status, status, Time.now.to_f]
+          ch.wait
         end
 
         channel.on_request("exit-signal") do |ch, data|
-          @logger.debug("exit-signal for [#{command}]")
+          @logger.debug("exit-signal for [#{command}]: #{data}")
+          command_buffer(command) << BufferItem[Status, -2, Time.now.to_f]
+          ch.close
+          # wait for the channel to finish so that we know at the end
+          # that the session is inactive
+          ch.wait
         end
 
-        channel.exec(command[:script]) do |ch, success|
+        channel.exec("#{remote_script} 2>&1 | /usr/bin/tee #{ output_path }") do |ch, success|
           started = true
-          @logger.debug("command [#{command}] started")
+          @logger.debug("command [#{command}] started as script #{ remote_script }")
           unless success
             command_buffer(command).concat([BufferItem[Error, "FAILED: couldn't execute command (ssh.channel.exec)", Time.now.to_f],
                                             BufferItem[Status, -1, Time.now.to_f]])
@@ -116,11 +125,95 @@ module Proxy::Ssh
       plan_next_refresh
     end
 
+    def kill(command)
+      @logger.debug("initalizing command [#{command}]")
+      ssh = session(command.host, command.ssh_user)
+      run_and_wait(ssh, "pkill -f #{ remote_script_file(command) }")
+    end
+
     private
 
     def session(host, user)
       @logger.debug("opening session to #{user}@#{host}")
       @sessions[[host, user]] ||= Net::SSH.start(host, user)
+    end
+
+    def local_script_dir(command)
+      File.join('/tmp/foreman-proxy-ssh/server', command[:id])
+    end
+
+    def local_script_file(command)
+      File.join(local_script_dir(command), 'script')
+    end
+
+    def remote_script_dir(command)
+      File.join('/tmp/foreman-proxy-ssh/client', command[:id])
+    end
+
+    def remote_script_file(command)
+      File.join(remote_script_dir(command), 'script')
+    end
+
+    def run_and_wait(ssh, command)
+      output = ""
+      exit_status = nil
+      channel = ssh.open_channel do |ch|
+        ch.on_data do |data|
+          output.concat(data)
+        end
+
+        ch.on_extended_data do |_, _, data|
+          output.concat(data)
+        end
+
+        ch.on_request("exit-status") do |_, data|
+          exit_status = data.read_long
+        end
+
+        ch.exec command do |_, success|
+          raise "could not execute command" unless success
+        end
+      end
+      channel.wait
+      return exit_status, output
+    end
+
+    def ensure_local_directory(path)
+      if File.exists?(path)
+        raise "#{ path } expected to be a directory" unless File.directory?(path)
+      else
+        FileUtils.mkdir_p(path)
+      end
+      return path
+    end
+
+    def ensure_remote_directory(session, path)
+      exit_code, output = run_and_wait(session, "mkdir -p #{ path }")
+      if exit_code != 0
+        raise "Unable to create directory on remote system #{ path }: #{ output }"
+      end
+    end
+
+    def cp_script_to_remote(session, command)
+      local_script_file = write_script_locally(command)
+      remote_script_file = File.join(remote_script_dir(command), 'script')
+      upload_file(session, local_script_file, remote_script_file)
+      return remote_script_file
+    end
+
+    def write_script_locally(command)
+      path = local_script_file(command)
+      ensure_local_directory(File.dirname(path))
+      File.write(path, command[:script])
+      File.chmod(0777, path)
+      return path
+    end
+
+    def upload_file(session, local_path, remote_path)
+      ensure_remote_directory(session, File.dirname(remote_path))
+      scp = Net::SCP.new(session)
+      upload_channel = scp.upload(local_path, remote_path)
+      upload_channel.wait
     end
 
     def close_session_if_inactive(host, user)
