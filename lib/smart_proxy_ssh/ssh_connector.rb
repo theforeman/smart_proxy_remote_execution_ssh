@@ -53,6 +53,9 @@ module Proxy::Ssh
       @logger.debug("initalizing command [#{command}]")
       session = session(command.host, command.ssh_user)
       remote_script = cp_script_to_remote(session, command)
+      if command.effective_user && command.effective_user != command.ssh_user
+        su_prefix = "su - #{ command.effective_user } -c "
+      end
       output_path = File.join(File.dirname(remote_script), 'output')
 
       started = false
@@ -81,9 +84,9 @@ module Proxy::Ssh
           ch.wait
         end
 
-        channel.exec("#{remote_script} 2>&1 | /usr/bin/tee #{ output_path }") do |ch, success|
+        channel.exec("#{ su_prefix }#{ remote_script } 2>&1 | /usr/bin/tee #{ output_path }") do |ch, success|
           started = true
-          @logger.debug("command [#{command}] started as script #{ remote_script }")
+          @logger.debug("command [#{command}] started as script #{ su_prefix }#{ remote_script }")
           unless success
             command_buffer(command).concat([BufferItem[Error, "FAILED: couldn't execute command (ssh.channel.exec)", Time.now.to_f],
                                             BufferItem[Status, 'INIT_ERROR', Time.now.to_f]])
