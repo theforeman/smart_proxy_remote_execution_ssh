@@ -25,7 +25,7 @@ module Proxy::Ssh
     # event sent to the action with the update data
     CommandUpdate = Algebrick.type do
       fields!(buffer: Array,
-              exit_status: type { variants(NilClass, Integer) } )
+              exit_status: type { variants(NilClass, Integer, String) } )
     end
 
     module CommandUpdate
@@ -72,8 +72,9 @@ module Proxy::Ssh
         end
 
         channel.on_request("exit-signal") do |ch, data|
-          @logger.debug("exit-signal for [#{command}]: #{data}")
-          command_buffer(command) << BufferItem[Status, -2, Time.now.to_f]
+          signal = data.read_string
+          @logger.debug("exit-signal for [#{command}]: #{signal}")
+          command_buffer(command) << BufferItem[Status, signal, Time.now.to_f]
           ch.close
           # wait for the channel to finish so that we know at the end
           # that the session is inactive
@@ -85,7 +86,7 @@ module Proxy::Ssh
           @logger.debug("command [#{command}] started as script #{ remote_script }")
           unless success
             command_buffer(command).concat([BufferItem[Error, "FAILED: couldn't execute command (ssh.channel.exec)", Time.now.to_f],
-                                            BufferItem[Status, -1, Time.now.to_f]])
+                                            BufferItem[Status, 'INIT_ERROR', Time.now.to_f]])
           end
         end
       end
