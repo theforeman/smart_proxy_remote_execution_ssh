@@ -6,9 +6,10 @@ module Proxy::Ssh
       content_type :json
     end
 
-    post "/command" do
+    post "/command/?" do
       command = parse_json_body
-      Proxy::Dynflow.world.trigger(Command, command)
+      triggered = Proxy::Dynflow.world.trigger(Command, command)
+      { :task_id => triggered.id }.to_json
     end
 
   end

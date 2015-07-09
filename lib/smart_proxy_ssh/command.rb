@@ -14,8 +14,7 @@ module Proxy::Ssh
               output[:result].concat(update.buffer_to_hash)
 
               if update.exit_status
-                output[:exit_status] = update.exit_status
-                error! "Script execution failed" if output[:exit_status] != 0
+                finish_run(update)
               else
                 suspend
               end
@@ -33,8 +32,8 @@ module Proxy::Ssh
     end
 
     def command
-      @command ||= SshConnector::Command[input[:id],
-                                         input[:host],
+      @command ||= SshConnector::Command[input[:task_id],
+                                         input[:hostname],
                                          'root',
                                          input[:effective_user],
                                          input[:script],
@@ -50,6 +49,18 @@ module Proxy::Ssh
     def kill_run
       Proxy::Ssh.ssh_connector.tell([:kill, command])
       suspend
+    end
+
+    def finish_run(update)
+      output[:exit_status] = update.exit_status
+      if input[:task_id] && input[:step_id]
+        Proxy::Dynflow::ForemanTasksCallback.send_to_foreman_tasks(input[:task_id], input[:step_id], output)
+      end
+      error! "Script execution failed" if failed_run?
+    end
+
+    def failed_run?
+      output[:exit_status] != 0
     end
   end
 end
