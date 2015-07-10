@@ -2,7 +2,6 @@ require 'smart_proxy_dynflow'
 
 require 'smart_proxy_ssh/version'
 require 'smart_proxy_ssh/plugin'
-require 'smart_proxy_ssh/api'
 
 require 'net/ssh'
 require 'net/scp'
