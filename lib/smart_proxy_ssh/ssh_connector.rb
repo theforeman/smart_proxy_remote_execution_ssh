@@ -4,6 +4,8 @@ module Proxy::Ssh
   # running in the system and updates the Dynflow actions periodically.
   class SshConnector < ::Dynflow::Actor
 
+    MAX_PROCESS_RETRIES = 3
+
     include Algebrick::Matching
 
     # command comming from action
@@ -96,13 +98,30 @@ module Proxy::Ssh
       # iterate on the process call until the script is sent to the host
       session.process(0) until started
 
+    rescue => e
+      command_buffer(command).concat([BufferItem[Error, "Exception: #{ e.class } #{ e.message }", Time.now.to_f],
+                                      BufferItem[Status, 'INIT_ERROR', Time.now.to_f]])
+    ensure
       plan_next_refresh
     end
 
     def refresh
       @logger.debug("refreshing #{@sessions.size} sessions")
       finished_commands = []
-      @sessions.values.each { |session| session.process(0) }
+      @sessions.values.each do |session|
+        tries = 0
+        begin
+          session.process(0)
+        rescue => e
+          @logger.error("Error while processing ssh channel: #{e.class} #{e.message}\n #{e.backtrace.join("\n")}")
+          tries += 1
+          if tries <= MAX_PROCESS_RETRIES
+            retry
+          else
+            raise e
+          end
+        end
+      end
 
       @command_buffer.each do |command, buffer|
         unless buffer.empty?
@@ -125,6 +144,7 @@ module Proxy::Ssh
 
       finished_commands.each { |command| finish_command(command) }
 
+    ensure
       @refresh_planned = false
       plan_next_refresh
     end
@@ -217,6 +237,9 @@ module Proxy::Ssh
       ensure_remote_directory(session, File.dirname(remote_path))
       scp = Net::SCP.new(session)
       upload_channel = scp.upload(local_path, remote_path)
+      upload_channel.wait
+    ensure
+      upload_channel.close
       upload_channel.wait
     end
 
