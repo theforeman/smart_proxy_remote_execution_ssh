@@ -11,7 +11,7 @@ module Proxy::Ssh
       fields!(id: String,
               host: String,
               ssh_user: String,
-              effective_user: String,
+              effective_user: type { variants(NilClass, String) },
               script: String,
               suspended_action: Object)
     end
