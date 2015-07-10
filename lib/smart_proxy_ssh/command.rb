@@ -4,6 +4,16 @@ module Proxy::Ssh
     include Algebrick::Matching
 
     include Dynflow::Action::Cancellable
+    include ::Proxy::Dynflow::Callback::PlanHelper
+
+    def plan(input)
+      if callback = input['callback']
+        input[:task_id] = callback['task_id']
+      else
+        input[:task_id] ||= SecureRandom.uuid
+      end
+      plan_with_callback(input)
+    end
 
     def run(event = nil)
       match(event,
@@ -27,12 +37,17 @@ module Proxy::Ssh
             end)
     end
 
+    def finalize
+      # To mark the task as a whole as failed
+      error! "Script execution failed" if failed_run?
+    end
+
     def rescue_strategy
       Dynflow::Action::Rescue::Skip
     end
 
     def command
-      @command ||= SshConnector::Command[input[:callback][:task_id],
+      @command ||= SshConnector::Command[input[:task_id],
                                          input[:hostname],
                                          'root',
                                          input[:effective_user],
@@ -53,10 +68,6 @@ module Proxy::Ssh
 
     def finish_run(update)
       output[:exit_status] = update.exit_status
-      if input[:callback]
-        Proxy::Dynflow::ForemanTasksCallback.send_to_foreman_tasks(input[:callback], output)
-      end
-      error! "Script execution failed" if failed_run?
     end
 
     def failed_run?
