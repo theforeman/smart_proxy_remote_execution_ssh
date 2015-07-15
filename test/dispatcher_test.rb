@@ -32,9 +32,6 @@ module Proxy::Ssh
        Connector::StatusData.new(0)]
     end
 
-    let :expected_connector_calls do
-    end
-
     before do
       Support::DummyConnector.mocked_async_run_data.concat(mocked_async_run_data)
       dispatcher.tell([:initialize_command, command])

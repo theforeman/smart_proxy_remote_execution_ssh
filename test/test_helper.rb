@@ -7,6 +7,8 @@ require 'support/dummy_connector'
 
 require 'smart_proxy_dynflow'
 
+require 'dynflow/testing'
+
 Concurrent.disable_at_exit_handlers!
 WORLD = Proxy::Dynflow.instance.create_world do |config|
   config.exit_on_terminate = false
