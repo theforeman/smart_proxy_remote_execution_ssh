@@ -1,7 +1,7 @@
 require 'test_helper'
-require 'smart_proxy_ssh/command_action'
+require 'smart_proxy_remote_execution_ssh/command_action'
 
-module Proxy::Ssh
+module Proxy::RemoteExecution::Ssh
   class CommandActionTest < MiniTest::Spec
     include ::Dynflow::Testing
 
@@ -17,7 +17,7 @@ module Proxy::Ssh
     end
 
     before do
-      Proxy::Ssh.stubs(:dispatcher).returns dispatcher
+      Proxy::RemoteExecution::Ssh.stubs(:dispatcher).returns dispatcher
     end
 
     it 'sends to command to dispatcher' do

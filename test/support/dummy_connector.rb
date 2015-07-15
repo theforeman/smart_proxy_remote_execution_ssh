@@ -1,7 +1,7 @@
-require 'smart_proxy_ssh/connector'
+require 'smart_proxy_remote_execution_ssh/connector'
 
 module Support
-  class DummyConnector < Proxy::Ssh::Connector
+  class DummyConnector < Proxy::RemoteExecution::Ssh::Connector
 
     def async_run(command, &block)
       if @block

@@ -1,7 +1,7 @@
 require 'test_helper'
-require 'smart_proxy_ssh/dispatcher'
+require 'smart_proxy_remote_execution_ssh/dispatcher'
 
-module Proxy::Ssh
+module Proxy::RemoteExecution::Ssh
   class DispatcherTest < MiniTest::Spec
 
     let :dispatcher do

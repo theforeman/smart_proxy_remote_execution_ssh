@@ -1,14 +1,14 @@
 # -*- encoding: utf-8 -*-
 lib = File.expand_path('../lib', __FILE__)
 $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
-require 'smart_proxy_ssh/version'
+require 'smart_proxy_remote_execution_ssh/version'
 
 Gem::Specification.new do |gem|
-  gem.name          = "smart_proxy_ssh"
-  gem.version       = Proxy::Ssh::VERSION
+  gem.name          = "smart_proxy_remote_execution_ssh"
+  gem.version       = Proxy::RemoteExecution::Ssh::VERSION
   gem.authors       = ['Ivan Nečas']
   gem.email         = ['inecas@redhat.com']
-  gem.homepage      = "https://github.com/theforeman/smart_proxy_ssh"
+  gem.homepage      = "https://github.com/theforeman/smart_proxy_remote_execution_ssh"
   gem.summary       = %q{Ssh remote execution provider for Foreman Smart-Proxy}
   gem.description   = <<-EOS
     Ssh remote execution provider for Foreman Smart-Proxy

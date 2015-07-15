@@ -1,4 +1,4 @@
-module Proxy::Ssh
+module Proxy::RemoteExecution::Ssh
   class CommandAction < ::Dynflow::Action
 
     include Dynflow::Action::Cancellable
@@ -54,12 +54,12 @@ module Proxy::Ssh
 
     def init_run
       output[:result] = []
-      Proxy::Ssh.dispatcher.tell([:initialize_command, command])
+      Proxy::RemoteExecution::Ssh.dispatcher.tell([:initialize_command, command])
       suspend
     end
 
     def kill_run
-      Proxy::Ssh.dispatcher.tell([:kill, command])
+      Proxy::RemoteExecution::Ssh.dispatcher.tell([:kill, command])
       suspend
     end
 
