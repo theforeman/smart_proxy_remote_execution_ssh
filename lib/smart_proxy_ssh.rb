@@ -3,18 +3,18 @@ require 'smart_proxy_dynflow'
 require 'smart_proxy_ssh/version'
 require 'smart_proxy_ssh/plugin'
 
-require 'net/ssh'
-require 'net/scp'
-require 'smart_proxy_ssh/ssh_connector'
-require 'smart_proxy_ssh/command'
+require 'smart_proxy_ssh/dispatcher'
+require 'smart_proxy_ssh/command_action'
 
 module Proxy::Ssh
 
   class << self
-    attr_reader :ssh_connector
+    attr_reader :dispatcher
 
     def initialize
-      @ssh_connector = Proxy::Ssh::SshConnector.spawn('proxy-ssh-connector', Proxy::Dynflow.instance.world)
+      @dispatcher = Proxy::Ssh::Dispatcher.spawn('proxy-ssh-dispatcher',
+                                                 :clock  => Proxy::Dynflow.instance.world.clock,
+                                                 :logger => Proxy::Dynflow.instance.world.logger)
     end
   end
 end
