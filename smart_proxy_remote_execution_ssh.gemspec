@@ -28,8 +28,6 @@ Gem::Specification.new do |gem|
   gem.add_development_dependency('rake', '~> 10')
 
   gem.add_runtime_dependency('smart_proxy_dynflow')
-  gem.add_runtime_dependency('sequel')
-  gem.add_runtime_dependency('sqlite3')
 
   gem.add_runtime_dependency('net-ssh')
   gem.add_runtime_dependency('net-scp')
