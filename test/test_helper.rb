@@ -6,16 +6,9 @@ require 'smart_proxy_for_testing'
 require 'support/dummy_connector'
 
 require 'smart_proxy_dynflow'
+require 'smart_proxy_dynflow/testing'
 
-require 'dynflow/testing'
-
-Concurrent.disable_at_exit_handlers!
-WORLD = Proxy::Dynflow.instance.create_world do |config|
-  config.exit_on_terminate = false
-  config.auto_terminate    = false
-  config.logger_adapter    = Dynflow::LoggerAdapters::Simple.new $stderr, 4
-end
-
+WORLD = Proxy::Dynflow::Testing.create_world
 DATA_DIR = File.expand_path('../data', __FILE__)
 
 class MiniTest::Test
