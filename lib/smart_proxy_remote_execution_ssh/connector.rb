@@ -6,7 +6,6 @@ module Proxy::RemoteExecution::Ssh
   # Dynflow action. It runs just one (actor) thread for all the commands
   # running in the system and updates the Dynflow actions periodically.
   class Connector
-
     class Data
       attr_reader :data, :timestamp
 
@@ -139,9 +138,9 @@ module Proxy::RemoteExecution::Ssh
     end
 
     def ensure_remote_directory(path)
-      exit_code, output = run("mkdir -p #{ path }")
+      exit_code, output = run("mkdir -p #{path}")
       if exit_code != 0
-        raise "Unable to create directory on remote system #{ path }: exit code: #{exit_code}\n #{ output }"
+        raise "Unable to create directory on remote system #{path}: exit code: #{exit_code}\n #{output}"
       end
     end
 

@@ -13,12 +13,11 @@ module Proxy::RemoteExecution
 
       def initialize
         @dispatcher = Proxy::RemoteExecution::Ssh::Dispatcher.spawn('proxy-ssh-dispatcher',
-                                                   :clock  => Proxy::Dynflow.instance.world.clock,
-                                                   :logger => Proxy::Dynflow.instance.world.logger)
+                                                                    :clock  => Proxy::Dynflow.instance.world.clock,
+                                                                    :logger => Proxy::Dynflow.instance.world.logger)
       end
     end
   end
 end
-
 
 Proxy::RemoteExecution::Ssh.initialize

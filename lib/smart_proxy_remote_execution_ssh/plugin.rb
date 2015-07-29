@@ -5,7 +5,7 @@ module Proxy::RemoteExecution::Ssh
 
     settings_file "ssh.yml"
     default_settings :ssh_identity_key => '~/.vagrant.d/insecure_private_key',
-        :ssh_user => 'root'
+                     :ssh_user => 'root'
     plugin :ssh, Proxy::RemoteExecution::Ssh::VERSION
   end
 end

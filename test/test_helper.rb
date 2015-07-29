@@ -1,5 +1,5 @@
 require 'minitest/autorun'
-$: << File.join(File.dirname(__FILE__), '..', 'lib')
+$LOAD_PATH << File.join(File.dirname(__FILE__), '..', 'lib')
 require "mocha/setup"
 require "rack/test"
 require 'smart_proxy_for_testing'
@@ -21,6 +21,5 @@ class MiniTest::Test
   end
 end
 
-
 logdir = File.join(File.dirname(__FILE__), '..', 'logs')
-FileUtils.mkdir_p(logdir) unless File.exists?(logdir)
+FileUtils.mkdir_p(logdir) unless File.exist?(logdir)

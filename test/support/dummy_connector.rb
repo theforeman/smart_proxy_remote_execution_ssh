@@ -2,7 +2,6 @@ require 'smart_proxy_remote_execution_ssh/connector'
 
 module Support
   class DummyConnector < Proxy::RemoteExecution::Ssh::Connector
-
     def async_run(command, &block)
       if @block
         raise "The DummyConnector does not support multiple async executions"

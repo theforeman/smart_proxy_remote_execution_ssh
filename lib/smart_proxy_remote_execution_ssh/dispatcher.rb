@@ -5,7 +5,6 @@ module Proxy::RemoteExecution::Ssh
   # Dynflow action. It runs just one (actor) thread for all the commands
   # running in the system and updates the Dynflow actions periodically.
   class Dispatcher < ::Dynflow::Actor
-
     # command comming from action
     class Command
       attr_reader :id, :host, :ssh_user, :effective_user, :script, :suspended_action
@@ -70,8 +69,7 @@ module Proxy::RemoteExecution::Ssh
       end
       output_path = File.join(File.dirname(remote_script), 'output')
 
-
-      connector.async_run("#{su_prefix}#{remote_script} | /usr/bin/tee #{ output_path }") do |data|
+      connector.async_run("#{su_prefix}#{remote_script} | /usr/bin/tee #{output_path}") do |data|
         command_buffer(command) << data
       end
     rescue => e
@@ -88,20 +86,10 @@ module Proxy::RemoteExecution::Ssh
 
       @command_buffer.each do |command, buffer|
         unless buffer.empty?
-          status = nil
-          @logger.debug("command #{command} got new output: #{buffer.inspect}")
-          buffer.delete_if do |data|
-            if data.is_a? Connector::StatusData
-              status = data.data
-              true
-            end
-          end
-          command.suspended_action << CommandUpdate.new(buffer, status)
+          status = refresh_command_buffer(command, buffer)
           if status
-            @logger.debug("command [#{command}] finished with status #{status}")
             finished_commands << command
           end
-          clear_command(command)
         end
       end
 
@@ -112,9 +100,26 @@ module Proxy::RemoteExecution::Ssh
       plan_next_refresh
     end
 
+    def refresh_command_buffer(command, buffer)
+      status = nil
+      @logger.debug("command #{command} got new output: #{buffer.inspect}")
+      buffer.delete_if do |data|
+        if data.is_a? Connector::StatusData
+          status = data.data
+          true
+        end
+      end
+      command.suspended_action << CommandUpdate.new(buffer, status)
+      clear_command(command)
+      if status
+        @logger.debug("command [#{command}] finished with status #{status}")
+        return status
+      end
+    end
+
     def kill(command)
       @logger.debug("killing command [#{command}]")
-      connector(command.host, command.ssh_user).run("pkill -f #{ remote_script_file(command) }")
+      connector(command.host, command.ssh_user).run("pkill -f #{remote_script_file(command)}")
     end
 
     protected
@@ -140,8 +145,8 @@ module Proxy::RemoteExecution::Ssh
     end
 
     def ensure_local_directory(path)
-      if File.exists?(path)
-        raise "#{ path } expected to be a directory" unless File.directory?(path)
+      if File.exist?(path)
+        raise "#{path} expected to be a directory" unless File.directory?(path)
       else
         FileUtils.mkdir_p(path)
       end
@@ -175,7 +180,7 @@ module Proxy::RemoteExecution::Ssh
     def refresh_connectors
       @logger.debug("refreshing #{@connectors.size} connectors")
 
-      @connectors.values.each { |connector| connector.refresh }
+      @connectors.values.each(&:refresh)
     end
 
     def command_buffer(command)

@@ -9,7 +9,7 @@ Gem::Specification.new do |gem|
   gem.authors       = ['Ivan Nečas']
   gem.email         = ['inecas@redhat.com']
   gem.homepage      = "https://github.com/theforeman/smart_proxy_remote_execution_ssh"
-  gem.summary       = %q{Ssh remote execution provider for Foreman Smart-Proxy}
+  gem.summary       = 'Ssh remote execution provider for Foreman Smart-Proxy'
   gem.description   = <<-EOS
     Ssh remote execution provider for Foreman Smart-Proxy
   EOS
@@ -26,6 +26,7 @@ Gem::Specification.new do |gem|
   gem.add_development_dependency('webmock', '~> 1')
   gem.add_development_dependency('rack-test', '~> 0')
   gem.add_development_dependency('rake', '~> 10')
+  gem.add_development_dependency('rubocop', '0.32.1')
 
   gem.add_runtime_dependency('smart_proxy_dynflow')
 
