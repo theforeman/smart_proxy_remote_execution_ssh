@@ -33,13 +33,20 @@ Install the dependencies
 ## Usage
 
 To configure this plugin you can use template from settings.d/ssh.yml.example.
-You must place ssh.yml config file (based on this template) to your 
+You must place ssh.yml config file (based on this template) to your
 smart-proxy config/settings.d/ directory.
+
+Also, you need to have the `dynflow` plugin enabled to be able to
+trigger the tasks.
 
 The simplest thing one can do is just to trigger a command:
 
 ```
-curl http://my-proxy.example.com:9292/ssh/command \
-     -H 'Content-Type: application/json' \
-     -d '{"id":"123","effective_user":"root","script":"/usr/bin/ls","host":"my-host.example.com}'
+curl http://my-proxy.example.com:9292/dynflow/tasks \
+      -X POST -H 'Content-Type: application/json'\
+      -d '{"action_name":  "Proxy::RemoteExecution::Ssh::CommandAction",
+           "action_input": {"task_id" : "1234'$RANDOM'",
+                            "script": "/usr/bin/ls",
+                            "hostname": "localhost",
+                            "effective_user": "root"}}'
 ```
