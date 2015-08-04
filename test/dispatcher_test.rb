@@ -1,5 +1,4 @@
 require 'test_helper'
-require 'smart_proxy_remote_execution_ssh/dispatcher'
 
 module Proxy::RemoteExecution::Ssh
   class DispatcherTest < MiniTest::Spec
@@ -80,6 +79,40 @@ module Proxy::RemoteExecution::Ssh
               "su - guest -c #{DATA_DIR}/client/123/script | /usr/bin/tee #{DATA_DIR}/client/123/output"]]
 
         Support::DummyConnector.log.must_equal expected_connector_calls
+      end
+    end
+
+    describe 'client private key' do
+      it 'uses the private key specified in the configuration' do
+        connector_options = Support::DummyConnector.last.options
+        connector_options[:client_private_key_file].must_equal(Proxy::RemoteExecution::Ssh.private_key_file)
+      end
+    end
+
+    describe 'host pubilc key' do
+      describe 'the public key was provided' do
+        let(:command) do
+          Dispatcher::Command.new(:id               => '123',
+                                  :host             => 'test.example.com',
+                                  :ssh_user         => 'root',
+                                  :host_public_key  => '===host-public-key===',
+                                  :effective_user   => 'guest',
+                                  :script           => 'cat /etc/motd',
+                                  :suspended_action => suspended_action_events)
+        end
+
+        it 'it saves the public key to the known hosts' do
+          connector_options = Support::DummyConnector.last.options
+          File.read(connector_options[:known_hosts_file]).must_equal "test.example.com ===host-public-key==="
+        end
+      end
+
+      describe 'the public key was not provided' do
+        it "passes the known hosts file, but does'n create it" do
+          connector_options = Support::DummyConnector.last.options
+          connector_options[:known_hosts_file].wont_be_empty
+          refute File.exist?(connector_options[:known_hosts_file])
+        end
       end
     end
 

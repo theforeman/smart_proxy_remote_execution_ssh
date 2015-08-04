@@ -45,10 +45,12 @@ module Proxy::RemoteExecution::Ssh
 
     MAX_PROCESS_RETRIES = 3
 
-    def initialize(host, user, logger = Logger.new($stderr))
-      @logger = logger
+    def initialize(host, user, options = {})
       @host = host
       @user = user
+      @logger = options[:logger] || Logger.new($stderr)
+      @client_private_key_file = options[:client_private_key_file]
+      @known_hosts_file = options[:known_hosts_file]
     end
 
     # Initiates run of the remote command and yields the data when
@@ -113,6 +115,7 @@ module Proxy::RemoteExecution::Ssh
     # calls the callback registered in the `async_run` when some data
     # for the session are available
     def refresh
+      return if @session.nil?
       tries = 0
       begin
         session.process(0)
@@ -133,8 +136,10 @@ module Proxy::RemoteExecution::Ssh
       upload_channel = scp.upload(local_path, remote_path)
       upload_channel.wait
     ensure
-      upload_channel.close
-      upload_channel.wait
+      if upload_channel
+        upload_channel.close
+        upload_channel.wait
+      end
     end
 
     def ensure_remote_directory(path)
@@ -145,12 +150,12 @@ module Proxy::RemoteExecution::Ssh
     end
 
     def inactive?
-      session.channels.empty?
+      @session.nil? || @session.channels.empty?
     end
 
     def close
       @logger.debug("closing session to #{@user}@#{@host}")
-      session.close unless session.closed?
+      @session.close unless @session.nil? || @session.closed?
     end
 
     private
@@ -158,8 +163,19 @@ module Proxy::RemoteExecution::Ssh
     def session
       @session ||= begin
                      @logger.debug("opening session to #{@user}@#{@host}")
-                     Net::SSH.start(@host, @user)
+                     Net::SSH.start(@host, @user, ssh_options)
                    end
+    end
+
+    def ssh_options
+      ssh_options = {}
+      ssh_options[:keys] = [@client_private_key_file] if @client_private_key_file
+      ssh_options[:user_known_hosts_file] = @known_hosts_file if @known_hosts_file
+      ssh_options[:keys_only] = true
+      # if the host public key is contained in the known_hosts_file,
+      # verify it, otherwise, if missing, import it and continue
+      ssh_options[:paranoid] = true
+      return ssh_options
     end
   end
 end

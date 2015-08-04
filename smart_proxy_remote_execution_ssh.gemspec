@@ -33,4 +33,3 @@ Gem::Specification.new do |gem|
   gem.add_runtime_dependency('net-ssh')
   gem.add_runtime_dependency('net-scp')
 end
-

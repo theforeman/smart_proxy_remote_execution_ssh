@@ -2,6 +2,14 @@ require 'smart_proxy_remote_execution_ssh/connector'
 
 module Support
   class DummyConnector < Proxy::RemoteExecution::Ssh::Connector
+    attr_reader :host, :user, :options
+
+    def initialize(host, user, options = {})
+      super
+      DummyConnector.last = self
+      @options = options
+    end
+
     def async_run(command, &block)
       if @block
         raise "The DummyConnector does not support multiple async executions"
@@ -43,6 +51,7 @@ module Support
 
     class << self
       attr_reader :log, :mocked_async_run_data, :finished
+      attr_accessor :last
 
       def inactive?
         if mocked_async_run_data.empty?
@@ -56,6 +65,7 @@ module Support
       end
 
       def reset
+        @last_connector = nil
         @finished = Concurrent.future
         @log = []
         @mocked_async_run_data = []

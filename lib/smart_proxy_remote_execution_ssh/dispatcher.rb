@@ -7,7 +7,7 @@ module Proxy::RemoteExecution::Ssh
   class Dispatcher < ::Dynflow::Actor
     # command comming from action
     class Command
-      attr_reader :id, :host, :ssh_user, :effective_user, :script, :suspended_action
+      attr_reader :id, :host, :ssh_user, :effective_user, :script, :host_public_key, :suspended_action
 
       def initialize(data)
         validate!(data)
@@ -17,6 +17,7 @@ module Proxy::RemoteExecution::Ssh
         @ssh_user         = data[:ssh_user]
         @effective_user   = data[:effective_user]
         @script           = data[:script]
+        @host_public_key  = data[:host_public_key]
         @suspended_action = data[:suspended_action]
       end
 
@@ -46,23 +47,22 @@ module Proxy::RemoteExecution::Ssh
     end
 
     def initialize(options = {})
-      @clock              = options[:clock] || Dynflow::Clock.spawn('proxy-dispatcher-clock')
-      @logger             = options[:logger] || Logger.new($stderr)
-      @connector_class    = options[:connector_class] || Connector
-      @local_working_dir  = options[:local_working_dir] || '/tmp/foreman-proxy-ssh/server'
-      @remote_working_dir = options[:remote_working_dir] || '/tmp/foreman-proxy-ssh/client'
-      @refresh_interval   = options[:refresh_interval] || 1
+      @clock                   = options[:clock] || Dynflow::Clock.spawn('proxy-dispatcher-clock')
+      @logger                  = options[:logger] || Logger.new($stderr)
+      @connector_class         = options[:connector_class] || Connector
+      @local_working_dir       = options[:local_working_dir] || '/tmp/foreman-proxy-ssh/server'
+      @remote_working_dir      = options[:remote_working_dir] || '/tmp/foreman-proxy-ssh/client'
+      @refresh_interval        = options[:refresh_interval] || 1
+      @client_private_key_file = Proxy::RemoteExecution::Ssh.private_key_file
 
       @connectors        = {}
       @command_buffer    = Hash.new { |h, k| h[k] = [] }
-      @process_by_output = {}
-      @process_buffer    = {}
       @refresh_planned = false
     end
 
     def initialize_command(command)
       @logger.debug("initalizing command [#{command}]")
-      connector = self.connector(command.host, command.ssh_user)
+      connector = self.connector_for_command(command)
       remote_script = cp_script_to_remote(connector, command)
       if command.effective_user && command.effective_user != command.ssh_user
         su_prefix = "su - #{command.effective_user} -c "
@@ -119,29 +119,33 @@ module Proxy::RemoteExecution::Ssh
 
     def kill(command)
       @logger.debug("killing command [#{command}]")
-      connector(command.host, command.ssh_user).run("pkill -f #{remote_script_file(command)}")
+      connector_for_command(command).run("pkill -f #{remote_command_file(command, 'script')}")
     end
 
     protected
 
-    def connector(host, user)
-      @connectors[[host, user]] ||= @connector_class.new(host, user, @logger)
+    def connector_for_command(command, only_if_exists = false)
+      if connector = @connectors[[command.host, command.ssh_user]]
+        return connector
+      end
+      return nil if only_if_exists
+      @connectors[[command.host, command.ssh_user]] = open_connector(command)
     end
 
-    def local_script_dir(command)
+    def local_command_dir(command)
       File.join(@local_working_dir, command.id)
     end
 
-    def local_script_file(command)
-      File.join(local_script_dir(command), 'script')
+    def local_command_file(command, filename)
+      File.join(local_command_dir(command), filename)
     end
 
-    def remote_script_dir(command)
+    def remote_command_dir(command)
       File.join(@remote_working_dir, command.id)
     end
 
-    def remote_script_file(command)
-      File.join(remote_script_dir(command), 'script')
+    def remote_command_file(command, filename)
+      File.join(remote_command_dir(command), filename)
     end
 
     def ensure_local_directory(path)
@@ -154,17 +158,32 @@ module Proxy::RemoteExecution::Ssh
     end
 
     def cp_script_to_remote(connector, command)
-      local_script_file = write_script_locally(command)
-      remote_script_file = File.join(remote_script_dir(command), 'script')
+      local_script_file = write_command_file_locally(command, 'script', command.script)
+      File.chmod(0777, local_script_file)
+      remote_script_file = remote_command_file(command, 'script')
       connector.upload_file(local_script_file, remote_script_file)
       return remote_script_file
     end
 
-    def write_script_locally(command)
-      path = local_script_file(command)
+    def write_command_file_locally(command, filename, content)
+      path = local_command_file(command, filename)
       ensure_local_directory(File.dirname(path))
-      File.write(path, command.script)
-      File.chmod(0777, path)
+      File.write(path, content)
+      return path
+    end
+
+    def open_connector(command)
+      options = { :logger => @logger }
+      options[:known_hosts_file] = prepare_known_hosts(command)
+      options[:client_private_key_file] = @client_private_key_file
+      @connector_class.new(command.host, command.ssh_user, options)
+    end
+
+    def prepare_known_hosts(command)
+      path = local_command_file(command, 'known_hosts')
+      if command.host_public_key
+        write_command_file_locally(command, 'known_hosts', "#{command.host} #{command.host_public_key}")
+      end
       return path
     end
 
@@ -180,7 +199,17 @@ module Proxy::RemoteExecution::Ssh
     def refresh_connectors
       @logger.debug("refreshing #{@connectors.size} connectors")
 
-      @connectors.values.each(&:refresh)
+      @connectors.values.each do |connector|
+        begin
+          connector.refresh
+        rescue => e
+          @command_buffer.each do |command, buffer|
+            if connector_for_command(command, false)
+              buffer << Connector::DebugData.new("Exception: #{e.class} #{e.message}")
+            end
+          end
+        end
+      end
     end
 
     def command_buffer(command)

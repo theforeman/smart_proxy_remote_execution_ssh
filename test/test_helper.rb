@@ -1,4 +1,7 @@
 require 'minitest/autorun'
+
+ENV['RACK_ENV'] = 'test'
+
 $LOAD_PATH << File.join(File.dirname(__FILE__), '..', 'lib')
 require "mocha/setup"
 require "rack/test"
@@ -7,13 +10,21 @@ require 'support/dummy_connector'
 
 require 'smart_proxy_dynflow'
 require 'smart_proxy_dynflow/testing'
+require 'smart_proxy_remote_execution_ssh'
 
 WORLD = Proxy::Dynflow::Testing.create_world
 DATA_DIR = File.expand_path('../data', __FILE__)
 
+FAKE_PRIVATE_KEY_FILE = File.join(DATA_DIR, 'fake_id_rsa')
+FAKE_PUBLIC_KEY_FILE = "#{FAKE_PRIVATE_KEY_FILE}.pub"
+Proxy::RemoteExecution::Ssh::Plugin.settings.ssh_identity_key_file = FAKE_PRIVATE_KEY_FILE
+
 class MiniTest::Test
   def setup
     Support::DummyConnector.reset
+    FileUtils.mkdir_p(DATA_DIR) unless File.exist?(DATA_DIR)
+    File.write(FAKE_PRIVATE_KEY_FILE, '===private-key===')
+    File.write(FAKE_PUBLIC_KEY_FILE, '===public-key===')
   end
 
   def teardown

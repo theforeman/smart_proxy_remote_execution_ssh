@@ -1,5 +1,4 @@
 require 'test_helper'
-require 'smart_proxy_remote_execution_ssh/command_action'
 
 module Proxy::RemoteExecution::Ssh
   class CommandActionTest < MiniTest::Spec

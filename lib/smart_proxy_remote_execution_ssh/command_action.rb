@@ -48,6 +48,8 @@ module Proxy::RemoteExecution::Ssh
                                            :ssh_user         => 'root',
                                            :effective_user   => input[:effective_user],
                                            :script           => input[:script],
+                                           :host_public_key  => input[:host_public_key],
+                                           :verify_host      => input[:verify_host],
                                            :suspended_action => suspended_action)
     end
 
