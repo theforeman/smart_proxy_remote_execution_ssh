@@ -1,4 +1,4 @@
 ---
-:enabled: false
+:enabled: true
 :ssh_identity_key_file: '~/.ssh/id_rsa_foreman_proxy'
 # :ssh_user: 'root'
