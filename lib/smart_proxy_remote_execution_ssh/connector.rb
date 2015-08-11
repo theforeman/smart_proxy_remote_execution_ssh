@@ -175,6 +175,7 @@ module Proxy::RemoteExecution::Ssh
       # if the host public key is contained in the known_hosts_file,
       # verify it, otherwise, if missing, import it and continue
       ssh_options[:paranoid] = true
+      ssh_options[:auth_methods] = ["publickey"]
       return ssh_options
     end
   end
