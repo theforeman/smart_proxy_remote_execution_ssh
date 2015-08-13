@@ -1,0 +1,72 @@
+AllCops:
+  RunRailsCops: false
+
+# Don't enforce documentation
+Style/Documentation:
+  Enabled: false
+
+# Support both ruby19 and hash_rockets
+Style/HashSyntax:
+  Enabled: false
+  SupportedStyles:
+    - ruby19
+    - hash_rockets
+
+Metrics/ClassLength:
+  Exclude:
+    - 'test/**/*'
+
+
+Style/TrailingComma:
+  Enabled: false
+
+Style/AccessorMethodName:
+  Enabled: false
+
+Metrics/LineLength:
+  Max: 120
+
+Style/StringLiterals:
+  Enabled: false
+
+Style/IfUnlessModifier:
+  Enabled: false
+
+Style/RedundantSelf:
+  Enabled: false
+
+Style/ClassAndModuleChildren:
+  Enabled: false
+
+Style/GuardClause:
+  Enabled: false
+
+Style/BracesAroundHashParameters:
+  Enabled: false
+
+Style/SignalException:
+  Enabled: false
+
+Metrics/MethodLength:
+  Max: 40
+
+Lint/AssignmentInCondition:
+  Enabled: false
+
+Style/RedundantReturn:
+  Enabled: false
+
+Lint/UnusedBlockArgument:
+  Enabled: false
+
+Style/Next:
+  Enabled: false
+
+Metrics/AbcSize:
+  Max: 30
+
+Metrics/CyclomaticComplexity:
+  Max: 15
+
+Metrics/ClassLength:
+  Enabled: false

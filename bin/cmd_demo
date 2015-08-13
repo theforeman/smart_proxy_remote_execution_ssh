@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+
+for i in {1..10} ; do
+    sleep $[ ( $RANDOM % 4) ]s
+    echo ${i}0%
+done
+
+exit $[$RANDOM % 2]
