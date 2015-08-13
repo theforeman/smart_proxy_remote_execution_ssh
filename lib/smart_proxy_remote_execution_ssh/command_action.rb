@@ -38,7 +38,7 @@ module Proxy::RemoteExecution::Ssh
       error! "Script execution failed" if failed_run?
     end
 
-    def rescue_strategy
+    def rescue_strategy_for_self
       Dynflow::Action::Rescue::Skip
     end
 
