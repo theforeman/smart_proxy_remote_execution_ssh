@@ -31,6 +31,10 @@ module Proxy::RemoteExecution::Ssh
       else
         raise "Unexpected event #{event.inspect}"
       end
+    rescue => e
+      action_logger.error e
+      output[:result] << Connector::DebugData.new("#{e.class}: #{e.message}").to_hash
+      output[:exit_status] = "PROXY_ERROR"
     end
 
     def finalize
