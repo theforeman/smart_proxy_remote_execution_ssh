@@ -17,6 +17,12 @@ module Proxy::RemoteExecution::Ssh
       def data_type
         raise NotImplemented
       end
+
+      def to_hash
+        { :output_type => data_type,
+          :output      => data,
+          :timestamp   => timestamp.to_f }
+      end
     end
 
     class StdoutData < Data

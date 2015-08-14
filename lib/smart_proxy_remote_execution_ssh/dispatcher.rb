@@ -38,11 +38,7 @@ module Proxy::RemoteExecution::Ssh
       end
 
       def buffer_to_hash
-        buffer.map do |buffer_data|
-          { :output_type => buffer_data.data_type,
-            :output      => buffer_data.data,
-            :timestamp   => buffer_data.timestamp.to_f }
-        end
+        buffer.map(&:to_hash)
       end
     end
 

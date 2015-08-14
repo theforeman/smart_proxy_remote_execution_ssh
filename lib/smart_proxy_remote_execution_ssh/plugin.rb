@@ -7,9 +7,5 @@ module Proxy::RemoteExecution::Ssh
     default_settings :ssh_identity_key_file => '~/.ssh/id_rsa_foreman_proxy',
                      :ssh_user => 'root'
     plugin :ssh, Proxy::RemoteExecution::Ssh::VERSION
-
-    after_activation do
-      Proxy::RemoteExecution::Ssh.initialize
-    end
   end
 end
