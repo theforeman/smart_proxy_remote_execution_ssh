@@ -14,8 +14,8 @@ Gem::Specification.new do |gem|
     Ssh remote execution provider for Foreman Smart-Proxy
   EOS
 
-  gem.files            = Dir['{bundler.d,lib,settings.d}/**/*', 'LICENSE', 'README*']
-  gem.extra_rdoc_files = ['README*', 'LICENSE']
+  gem.files            = Dir['{bundler.d,lib,settings.d}/**/*', 'LICENSE', 'README.md']
+  gem.extra_rdoc_files = ['README.md', 'LICENSE']
   gem.test_files       = gem.files.grep(%r{^(test|spec|features)/})
   gem.require_paths    = ["lib"]
   gem.license = 'GPLv3'
