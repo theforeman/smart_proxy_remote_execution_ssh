@@ -20,7 +20,7 @@ cat > config/settings.d/dynflow.yml <<EOF
 :enabled: true
 EOF
 
-cat > config/settings.d/ssh.yml <<EOF
+cat > config/settings.d/remote_execution_ssh.yml <<EOF
 ---
 :enabled: true
 EOF
@@ -32,8 +32,8 @@ Install the dependencies
 
 ## Usage
 
-To configure this plugin you can use template from settings.d/ssh.yml.example.
-You must place ssh.yml config file (based on this template) to your
+To configure this plugin you can use template from settings.d/remote_execution_ssh.yml.example.
+You must place remote_execution_ssh.yml config file (based on this template) to your
 smart-proxy config/settings.d/ directory.
 
 Also, you need to have the `dynflow` plugin enabled to be able to

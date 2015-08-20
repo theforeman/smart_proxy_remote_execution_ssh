@@ -3,7 +3,7 @@ module Proxy::RemoteExecution::Ssh
     http_rackup_path File.expand_path("http_config.ru", File.expand_path("../", __FILE__))
     https_rackup_path File.expand_path("http_config.ru", File.expand_path("../", __FILE__))
 
-    settings_file "ssh.yml"
+    settings_file "remote_execution_ssh.yml"
     default_settings :ssh_identity_key_file => '~/.ssh/id_rsa_foreman_proxy',
                      :ssh_user => 'root'
     plugin :ssh, Proxy::RemoteExecution::Ssh::VERSION
