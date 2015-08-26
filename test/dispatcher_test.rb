@@ -2,32 +2,32 @@ require 'test_helper'
 
 module Proxy::RemoteExecution::Ssh
   class DispatcherTest < MiniTest::Spec
-    let :dispatcher do
-      Dispatcher.spawn('ssh-test-dispatcher',
-                       :refresh_interval   => 0.01,
-                       :clock              => WORLD.clock,
-                       :logger             => WORLD.logger,
-                       :connector_class    => Support::DummyConnector,
-                       :local_working_dir  => "#{DATA_DIR}/server",
-                       :remote_working_dir => "#{DATA_DIR}/client")
-    end
-
     let :suspended_action_events do
       []
     end
 
     let :command do
-      Dispatcher::Command.new(:id               => '123',
-                              :host             => 'test.example.com',
-                              :ssh_user         => 'root',
-                              :script           => 'cat /etc/motd',
+      Dispatcher::Command.new(:id => '123',
+                              :host => 'test.example.com',
+                              :ssh_user => 'root',
+                              :script => 'cat /etc/motd',
                               :suspended_action => suspended_action_events)
     end
 
+    let :dispatcher do
+      Dispatcher.spawn('ssh-test-dispatcher',
+                       :refresh_interval => 0.01,
+                       :clock => WORLD.clock,
+                       :logger => WORLD.logger,
+                       :connector_class => Support::DummyConnector,
+                       :local_working_dir => "#{DATA_DIR}/server",
+                       :remote_working_dir => "#{DATA_DIR}/client")
+    end
+
     let :mocked_async_run_data do
-      [Connector::StdoutData.new('Hello world'),
-       Connector::StdoutData.new('This is motd'),
-       Connector::StatusData.new(0)]
+      [CommandUpdate::StdoutData.new('Hello world'),
+       CommandUpdate::StdoutData.new('This is motd'),
+       CommandUpdate::StatusData.new(0)]
     end
 
     before do
@@ -39,10 +39,10 @@ module Proxy::RemoteExecution::Ssh
     it 'collects the output from command and sends that to suspnded action' do
       suspended_action_events.map do |event|
         { :exit_status => event.exit_status,
-          :buffer      => event.buffer.map { |data| [data.class, data.data] } }
-      end.must_equal [{ :exit_status => nil, :buffer => [[Connector::StdoutData, 'Hello world']] },
-                      { :exit_status => nil, :buffer => [[Connector::StdoutData, 'This is motd']] },
-                      { :exit_status => 0,   :buffer => [] }]
+          :buffer => event.buffer.map { |data| [data.class, data.data] } }
+      end.must_equal [{ :exit_status => nil, :buffer => [[CommandUpdate::StdoutData, 'Hello world']] },
+                      { :exit_status => nil, :buffer => [[CommandUpdate::StdoutData, 'This is motd']] },
+                      { :exit_status => 0, :buffer => [] }]
     end
 
     it 'copies the script to the server and runs it there' do
@@ -60,11 +60,11 @@ module Proxy::RemoteExecution::Ssh
 
     describe 'using effective user' do
       let :command do
-        Dispatcher::Command.new(:id               => '123',
-                                :host             => 'test.example.com',
-                                :ssh_user         => 'root',
-                                :effective_user   => 'guest',
-                                :script           => 'cat /etc/motd',
+        Dispatcher::Command.new(:id => '123',
+                                :host => 'test.example.com',
+                                :ssh_user => 'root',
+                                :effective_user => 'guest',
+                                :script => 'cat /etc/motd',
                                 :suspended_action => suspended_action_events)
       end
 
@@ -92,12 +92,12 @@ module Proxy::RemoteExecution::Ssh
     describe 'host pubilc key' do
       describe 'the public key was provided' do
         let(:command) do
-          Dispatcher::Command.new(:id               => '123',
-                                  :host             => 'test.example.com',
-                                  :ssh_user         => 'root',
-                                  :host_public_key  => '===host-public-key===',
-                                  :effective_user   => 'guest',
-                                  :script           => 'cat /etc/motd',
+          Dispatcher::Command.new(:id => '123',
+                                  :host => 'test.example.com',
+                                  :ssh_user => 'root',
+                                  :host_public_key => '===host-public-key===',
+                                  :effective_user => 'guest',
+                                  :script => 'cat /etc/motd',
                                   :suspended_action => suspended_action_events)
         end
 
@@ -117,12 +117,15 @@ module Proxy::RemoteExecution::Ssh
     end
 
     describe 'killing' do
-      it 'uses su to set the use to the effecitve one' do
+      it 'sends pkill to the send signal to the remote process' do
         Support::DummyConnector.reset
-        expected_connector_calls = [["root@test.example.com", :run, "pkill -f #{DATA_DIR}/client/123/script"]]
+        Support::DummyConnector.mocked_async_run_data << CommandUpdate::StdoutData.new('Hello world')
+        dispatcher.ask([:initialize_command, command]).wait
+        expected_connector_call = ["root@test.example.com", :run, "pkill -f #{DATA_DIR}/client/123/script"]
 
         dispatcher.ask([:kill, command]).wait
-        Support::DummyConnector.log.must_equal expected_connector_calls
+        Support::DummyConnector.wait
+        Support::DummyConnector.log.must_include expected_connector_call
       end
     end
   end

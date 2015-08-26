@@ -6,49 +6,6 @@ module Proxy::RemoteExecution::Ssh
   # Dynflow action. It runs just one (actor) thread for all the commands
   # running in the system and updates the Dynflow actions periodically.
   class Connector
-    class Data
-      attr_reader :data, :timestamp
-
-      def initialize(data, timestamp = Time.now)
-        @data = data
-        @timestamp = timestamp
-      end
-
-      def data_type
-        raise NotImplemented
-      end
-
-      def to_hash
-        { :output_type => data_type,
-          :output      => data,
-          :timestamp   => timestamp.to_f }
-      end
-    end
-
-    class StdoutData < Data
-      def data_type
-        :stdout
-      end
-    end
-
-    class StderrData < Data
-      def data_type
-        :stderr
-      end
-    end
-
-    class DebugData < Data
-      def data_type
-        :debug
-      end
-    end
-
-    class StatusData < Data
-      def data_type
-        :status
-      end
-    end
-
     MAX_PROCESS_RETRIES = 3
 
     def initialize(host, user, options = {})
@@ -65,16 +22,16 @@ module Proxy::RemoteExecution::Ssh
     def async_run(command)
       started = false
       session.open_channel do |channel|
-        channel.on_data { |ch, data| yield StdoutData.new(data) }
+        channel.on_data { |ch, data| yield CommandUpdate::StdoutData.new(data) }
 
-        channel.on_extended_data { |ch, type, data| yield StderrData.new(data) }
+        channel.on_extended_data { |ch, type, data| yield CommandUpdate::StderrData.new(data) }
 
         # standard exit of the command
-        channel.on_request("exit-status") { |ch, data| yield StatusData.new(data.read_long) }
+        channel.on_request("exit-status") { |ch, data| yield CommandUpdate::StatusData.new(data.read_long) }
 
         # on signal: sedning the signal value (such as 'TERM')
         channel.on_request("exit-signal") do |ch, data|
-          yield(StatusData.new(data.read_string))
+          yield(CommandUpdate::StatusData.new(data.read_string))
           ch.close
           # wait for the channel to finish so that we know at the end
           # that the session is inactive
@@ -84,8 +41,9 @@ module Proxy::RemoteExecution::Ssh
         channel.exec(command) do |ch, success|
           started = true
           unless success
-            yield DebugData.new("FAILED: couldn't execute command (ssh.channel.exec)")
-            yield StatusData.new("INIT_ERROR")
+            CommandUpdate.encode_exception("Error initializing command #{command}", e).each do |data|
+              yield data
+            end
           end
         end
       end
@@ -153,10 +111,6 @@ module Proxy::RemoteExecution::Ssh
       if exit_code != 0
         raise "Unable to create directory on remote system #{path}: exit code: #{exit_code}\n #{output}"
       end
-    end
-
-    def inactive?
-      @session.nil? || @session.channels.empty?
     end
 
     def close

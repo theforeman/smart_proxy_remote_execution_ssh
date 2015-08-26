@@ -35,7 +35,7 @@ module Proxy::RemoteExecution::Ssh
 
     it 'saves the command update to the output' do
       action = create_and_plan_action CommandAction, command_input
-      command_update = Dispatcher::CommandUpdate.new([Connector::StdoutData.new('Hello world')], nil)
+      command_update = CommandUpdate.new([CommandUpdate::StdoutData.new('Hello world')])
       dispatcher.expects(:tell)
       action = run_action action
 
@@ -47,7 +47,7 @@ module Proxy::RemoteExecution::Ssh
       result_item[:output].must_equal "Hello world"
       result_item[:timestamp].must_be_kind_of Numeric
 
-      command_update = Dispatcher::CommandUpdate.new([Connector::StderrData.new('Finished')], 1)
+      command_update = CommandUpdate.new([CommandUpdate::StderrData.new('Finished'), CommandUpdate::StatusData.new(1)])
       action = run_action action, command_update
       action.output['result'].size.must_equal 2
       result_item  = action.output['result'].last
