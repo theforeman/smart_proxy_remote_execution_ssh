@@ -21,6 +21,9 @@ module Support
 
     def run(command)
       log_call(:run, command)
+      if command.include?('pkill')
+        self.class.mocked_async_run_data << Proxy::RemoteExecution::Ssh::CommandUpdate::StatusData.new('SIGINT')
+      end
       return *self.class.mocked_run_data
     end
 
@@ -35,12 +38,9 @@ module Support
       end
     end
 
-    def inactive?
-      self.class.inactive?
-    end
-
     def close
       @block = nil
+      self.class.close
     end
 
     private
@@ -53,11 +53,8 @@ module Support
       attr_reader :log, :mocked_async_run_data, :finished
       attr_accessor :last
 
-      def inactive?
-        if mocked_async_run_data.empty?
-          @finished.success(true)
-          return true
-        end
+      def close
+        @finished.success(true)
       end
 
       def mocked_run_data

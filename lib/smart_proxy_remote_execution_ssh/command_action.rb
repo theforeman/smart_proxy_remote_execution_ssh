@@ -16,7 +16,7 @@ module Proxy::RemoteExecution::Ssh
       case event
       when nil
         init_run
-      when Dispatcher::CommandUpdate
+      when CommandUpdate
         update = event
         output[:result].concat(update.buffer_to_hash)
         if update.exit_status
