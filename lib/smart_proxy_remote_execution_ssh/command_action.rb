@@ -17,13 +17,7 @@ module Proxy::RemoteExecution::Ssh
       when nil
         init_run
       when CommandUpdate
-        update = event
-        output[:result].concat(update.buffer_to_hash)
-        if update.exit_status
-          finish_run(update)
-        else
-          suspend
-        end
+        process_update(event)
       when Dynflow::Action::Cancellable::Cancel
         kill_run
       when Dynflow::Action::Skip
@@ -32,9 +26,8 @@ module Proxy::RemoteExecution::Ssh
         raise "Unexpected event #{event.inspect}"
       end
     rescue => e
-      action_logger.error e
-      output[:result] << Connector::DebugData.new("#{e.class}: #{e.message}").to_hash
-      output[:exit_status] = "PROXY_ERROR"
+      action_logger.error(e)
+      process_update(CommandUpdate.new(CommandUpdate.encode_exception("Proxy error", e)))
     end
 
     def finalize
@@ -70,6 +63,15 @@ module Proxy::RemoteExecution::Ssh
 
     def finish_run(update)
       output[:exit_status] = update.exit_status
+    end
+
+    def process_update(update)
+      output[:result].concat(update.buffer_to_hash)
+      if update.exit_status
+        finish_run(update)
+      else
+        suspend
+      end
     end
 
     def failed_run?

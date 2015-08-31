@@ -22,9 +22,9 @@ module Proxy::RemoteExecution::Ssh
     def async_run(command)
       started = false
       session.open_channel do |channel|
-        channel.on_data { |ch, data| yield CommandUpdate::StdoutData.new(data) }
+        channel.on_data { |ch, data| yield CommandUpdate::StdoutData.new(handle_encoding(data)) }
 
-        channel.on_extended_data { |ch, type, data| yield CommandUpdate::StderrData.new(data) }
+        channel.on_extended_data { |ch, type, data| yield CommandUpdate::StderrData.new(handle_encoding(data)) }
 
         # standard exit of the command
         channel.on_request("exit-status") { |ch, data| yield CommandUpdate::StatusData.new(data.read_long) }
@@ -119,6 +119,14 @@ module Proxy::RemoteExecution::Ssh
     end
 
     private
+
+    def handle_encoding(data)
+      if data.is_a? String
+        data.force_encoding('UTF-8')
+      else
+        data
+      end
+    end
 
     def session
       @session ||= begin
