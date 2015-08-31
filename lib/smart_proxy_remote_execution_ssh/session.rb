@@ -30,7 +30,14 @@ module Proxy::RemoteExecution::Ssh
       end
       output_path = File.join(File.dirname(remote_script), 'output')
 
-      @connector.async_run("#{su_prefix}#{remote_script} | /usr/bin/tee #{output_path}") do |data|
+      # pipe the output to tee while capturing the exit code
+      script = <<-SCRIPT
+        exec 4>&1
+        exit_code=`((#{su_prefix}#{remote_script}; echo $?>&3 ) | /usr/bin/tee #{output_path} ) 3>&1 >&4`
+        exec 4>&-
+        exit $exit_code
+      SCRIPT
+      @connector.async_run(script) do |data|
         @command_buffer << data
       end
     rescue => e

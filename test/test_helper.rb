@@ -18,6 +18,9 @@ DATA_DIR = File.expand_path('../data', __FILE__)
 FAKE_PRIVATE_KEY_FILE = File.join(DATA_DIR, 'fake_id_rsa')
 FAKE_PUBLIC_KEY_FILE = "#{FAKE_PRIVATE_KEY_FILE}.pub"
 
+logdir = File.join(File.dirname(__FILE__), '..', 'logs')
+FileUtils.mkdir_p(logdir) unless File.exist?(logdir)
+
 def prepare_fake_keys
   Proxy::RemoteExecution::Ssh::Plugin.settings.ssh_identity_key_file = FAKE_PRIVATE_KEY_FILE
   FileUtils.mkdir_p(DATA_DIR) unless File.exist?(DATA_DIR)
@@ -39,6 +42,3 @@ class MiniTest::Test
     FileUtils.rm_rf(DATA_DIR) if File.exist?(DATA_DIR)
   end
 end
-
-logdir = File.join(File.dirname(__FILE__), '..', 'logs')
-FileUtils.mkdir_p(logdir) unless File.exist?(logdir)
