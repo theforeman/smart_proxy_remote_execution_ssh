@@ -53,7 +53,7 @@ module Proxy::RemoteExecution::Ssh
             "#{DATA_DIR}/client/123/script"],
            ["root@test.example.com",
             :async_run,
-            "#{DATA_DIR}/client/123/script | /usr/bin/tee #{DATA_DIR}/client/123/output"]]
+            "#{DATA_DIR}/client/123/script"]]
 
       Support::DummyConnector.log.must_equal expected_connector_calls
     end
@@ -76,7 +76,7 @@ module Proxy::RemoteExecution::Ssh
               "#{DATA_DIR}/client/123/script"],
              ["root@test.example.com",
               :async_run,
-              "su - guest -c #{DATA_DIR}/client/123/script | /usr/bin/tee #{DATA_DIR}/client/123/output"]]
+              "su - guest -c #{DATA_DIR}/client/123/script"]]
 
         Support::DummyConnector.log.must_equal expected_connector_calls
       end

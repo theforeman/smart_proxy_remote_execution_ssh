@@ -14,7 +14,9 @@ module Support
       if @block
         raise "The DummyConnector does not support multiple async executions"
       end
-      log_call(:async_run, command)
+      # strip the pipes parts of the code
+      stripped_command = command[/`\(\((.*?);/, 1]
+      log_call(:async_run, stripped_command)
       @block = block
       return true
     end
