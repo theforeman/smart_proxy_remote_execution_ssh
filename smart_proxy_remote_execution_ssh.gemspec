@@ -30,6 +30,6 @@ Gem::Specification.new do |gem|
 
   gem.add_runtime_dependency('smart_proxy_dynflow', '~> 0.0.3')
 
-  gem.add_runtime_dependency('net-ssh')
+  gem.add_runtime_dependency('net-ssh', '<= 2.10.0')
   gem.add_runtime_dependency('net-scp')
 end
