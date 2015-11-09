@@ -84,5 +84,13 @@ module Proxy::RemoteExecution::Ssh
       action = run_action action, Dynflow::Action::Skip
       action.state.must_equal :success
     end
+
+    it 'allows overriding the ssh user' do
+      action = create_and_plan_action CommandAction, command_input.merge(:ssh_user => 'cloud-user')
+      dispatcher.expects(:tell).with do |(_method, command)|
+        command.ssh_user.must_equal 'cloud-user'
+      end
+      run_action action
+    end
   end
 end

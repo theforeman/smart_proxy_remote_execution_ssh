@@ -42,7 +42,7 @@ module Proxy::RemoteExecution::Ssh
     def command
       @command ||= Dispatcher::Command.new(:id               => input[:task_id],
                                            :host             => input[:hostname],
-                                           :ssh_user         => 'root',
+                                           :ssh_user         => input[:ssh_user] || 'root',
                                            :effective_user   => input[:effective_user],
                                            :script           => input[:script],
                                            :host_public_key  => input[:host_public_key],
