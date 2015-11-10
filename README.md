@@ -1,3 +1,8 @@
+[![Build Status](https://img.shields.io/jenkins/s/http/ci.theforeman.org/test_plugin_smart_proxy_remote_execution_ssh_master.svg)](http://ci.theforeman.org/job/test_plugin_smart_proxy_remote_execution_ssh_master)
+[![Gem Version](https://img.shields.io/gem/v/smart_proxy_remote_execution_ssh.svg)](https://rubygems.org/gems/smart_proxy_remote_execution_ssh)
+[![Code Climate](https://codeclimate.com/github/theforeman/smart_proxy_remote_execution_ssh/badges/gpa.svg)](https://codeclimate.com/github/theforeman/smart_proxy_remote_execution_ssh)
+[![GPL License](https://img.shields.io/github/license/theforeman/smart_proxy_remote_execution_ssh.svg)](https://github.com/theforeman/smart_proxy_remote_execution_ssh/blob/master/LICENSE)
+
 # Smart-proxy Ssh plugin 
 
 This a plugin for foreman smart-proxy allowing using ssh for the
