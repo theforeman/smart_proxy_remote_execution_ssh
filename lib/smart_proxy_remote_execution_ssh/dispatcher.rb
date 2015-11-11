@@ -35,8 +35,8 @@ module Proxy::RemoteExecution::Ssh
       @session_args = { :logger => @logger,
                         :clock => @clock,
                         :connector_class => options[:connector_class] || Connector,
-                        :local_working_dir => options[:local_working_dir] || '/tmp/foreman-proxy-ssh/server',
-                        :remote_working_dir => options[:remote_working_dir] || '/tmp/foreman-proxy-ssh/client',
+                        :local_working_dir => options[:local_working_dir] || ::Proxy::RemoteExecution::Ssh::Plugin.settings.local_working_dir,
+                        :remote_working_dir => options[:remote_working_dir] || ::Proxy::RemoteExecution::Ssh::Plugin.settings.remote_working_dir,
                         :client_private_key_file => Proxy::RemoteExecution::Ssh.private_key_file,
                         :refresh_interval => options[:refresh_interval] || 1 }
 

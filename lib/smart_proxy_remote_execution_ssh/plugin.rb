@@ -5,7 +5,10 @@ module Proxy::RemoteExecution::Ssh
 
     settings_file "remote_execution_ssh.yml"
     default_settings :ssh_identity_key_file => '~/.ssh/id_rsa_foreman_proxy',
-                     :ssh_user => 'root'
+                     :ssh_user              => 'root',
+                     :remote_working_dir    => '/var/tmp',
+                     :local_working_dir     => '/var/tmp'
+
     plugin :ssh, Proxy::RemoteExecution::Ssh::VERSION
   end
 end
