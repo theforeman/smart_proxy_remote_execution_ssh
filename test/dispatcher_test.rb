@@ -20,8 +20,8 @@ module Proxy::RemoteExecution::Ssh
                        :clock => WORLD.clock,
                        :logger => WORLD.logger,
                        :connector_class => Support::DummyConnector,
-                       :local_working_dir => "#{DATA_DIR}/server",
-                       :remote_working_dir => "#{DATA_DIR}/client")
+                       :local_working_dir => "#{DATA_DIR}",
+                       :remote_working_dir => "#{DATA_DIR}")
     end
 
     let :mocked_async_run_data do
@@ -49,11 +49,11 @@ module Proxy::RemoteExecution::Ssh
       expected_connector_calls =
           [["root@test.example.com",
             :upload_file,
-            "#{DATA_DIR}/server/123/script",
-            "#{DATA_DIR}/client/123/script"],
+            "#{DATA_DIR}/foreman-proxy/foreman-ssh-cmd-123/script",
+            "#{DATA_DIR}/foreman-ssh-cmd-123/script"],
            ["root@test.example.com",
             :async_run,
-            "#{DATA_DIR}/client/123/script"]]
+            "#{DATA_DIR}/foreman-ssh-cmd-123/script"]]
 
       Support::DummyConnector.log.must_equal expected_connector_calls
     end
@@ -72,11 +72,11 @@ module Proxy::RemoteExecution::Ssh
         expected_connector_calls =
             [["root@test.example.com",
               :upload_file,
-              "#{DATA_DIR}/server/123/script",
-              "#{DATA_DIR}/client/123/script"],
+              "#{DATA_DIR}/foreman-proxy/foreman-ssh-cmd-123/script",
+              "#{DATA_DIR}/foreman-ssh-cmd-123/script"],
              ["root@test.example.com",
               :async_run,
-              "su - guest -c #{DATA_DIR}/client/123/script"]]
+              "su - guest -c #{DATA_DIR}/foreman-ssh-cmd-123/script"]]
 
         Support::DummyConnector.log.must_equal expected_connector_calls
       end
@@ -121,7 +121,7 @@ module Proxy::RemoteExecution::Ssh
         Support::DummyConnector.reset
         Support::DummyConnector.mocked_async_run_data << CommandUpdate::StdoutData.new('Hello world')
         dispatcher.ask([:initialize_command, command]).wait
-        expected_connector_call = ["root@test.example.com", :run, "pkill -f #{DATA_DIR}/client/123/script"]
+        expected_connector_call = ["root@test.example.com", :run, "pkill -f #{DATA_DIR}/foreman-ssh-cmd-123/script"]
 
         dispatcher.ask([:kill, command]).wait
         Support::DummyConnector.wait

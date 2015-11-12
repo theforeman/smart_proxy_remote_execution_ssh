@@ -9,8 +9,8 @@ module Proxy::RemoteExecution::Ssh
       @clock = options[:clock] || Dynflow::Clock.spawn('proxy-dispatcher-clock')
       @logger = options[:logger] || Logger.new($stderr)
       @connector_class = options[:connector_class] || Connector
-      @local_working_dir = options[:local_working_dir] || '/tmp/foreman-proxy-ssh/server'
-      @remote_working_dir = options[:remote_working_dir] || '/tmp/foreman-proxy-ssh/client'
+      @local_working_dir = options[:local_working_dir] || ::Proxy::RemoteExecution::Ssh::Plugin.settings.local_working_dir
+      @remote_working_dir = options[:remote_working_dir] || ::Proxy::RemoteExecution::Ssh::Plugin.settings.remote_working_dir
       @refresh_interval = options[:refresh_interval] || 1
       @client_private_key_file = Proxy::RemoteExecution::Ssh.private_key_file
       @command = options[:command]
@@ -113,7 +113,7 @@ module Proxy::RemoteExecution::Ssh
     end
 
     def local_command_dir
-      File.join(@local_working_dir, @command.id)
+      File.join(@local_working_dir, 'foreman-proxy', "foreman-ssh-cmd-#{@command.id}")
     end
 
     def local_command_file(filename)
@@ -121,7 +121,7 @@ module Proxy::RemoteExecution::Ssh
     end
 
     def remote_command_dir
-      File.join(@remote_working_dir, @command.id)
+      File.join(@remote_working_dir, "foreman-ssh-cmd-#{@command.id}")
     end
 
     def remote_command_file(filename)
