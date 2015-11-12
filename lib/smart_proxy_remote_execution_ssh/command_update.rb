@@ -32,6 +32,7 @@ module Proxy::RemoteExecution::Ssh
 
       def initialize(data, timestamp = Time.now)
         @data = data
+        @data = @data.force_encoding('UTF-8') if @data.is_a? String
         @timestamp = timestamp
       end
 
