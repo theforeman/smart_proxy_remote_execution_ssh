@@ -22,6 +22,8 @@ module Proxy::RemoteExecution::Ssh
     def async_run(command)
       started = false
       session.open_channel do |channel|
+        channel.request_pty
+
         channel.on_data { |ch, data| yield CommandUpdate::StdoutData.new(data) }
 
         channel.on_extended_data { |ch, type, data| yield CommandUpdate::StderrData.new(data) }

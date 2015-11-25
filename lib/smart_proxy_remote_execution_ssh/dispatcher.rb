@@ -7,18 +7,19 @@ module Proxy::RemoteExecution::Ssh
   class Dispatcher < ::Dynflow::Actor
     # command comming from action
     class Command
-      attr_reader :id, :host, :ssh_user, :effective_user, :script, :host_public_key, :suspended_action
+      attr_reader :id, :host, :ssh_user, :effective_user, :effective_user_method, :script, :host_public_key, :suspended_action
 
       def initialize(data)
         validate!(data)
 
-        @id               = data[:id]
-        @host             = data[:host]
-        @ssh_user         = data[:ssh_user]
-        @effective_user   = data[:effective_user]
-        @script           = data[:script]
-        @host_public_key  = data[:host_public_key]
-        @suspended_action = data[:suspended_action]
+        @id                    = data[:id]
+        @host                  = data[:host]
+        @ssh_user              = data[:ssh_user]
+        @effective_user        = data[:effective_user]
+        @effective_user_method = data[:effective_user_method] || 'su'
+        @script                = data[:script]
+        @host_public_key       = data[:host_public_key]
+        @suspended_action      = data[:suspended_action]
       end
 
       def validate!(data)

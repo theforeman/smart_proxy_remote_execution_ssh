@@ -25,9 +25,6 @@ module Proxy::RemoteExecution::Ssh
       @logger.debug("initalizing command [#{@command}]")
       open_connector
       remote_script = cp_script_to_remote
-      if @command.effective_user && @command.effective_user != @command.ssh_user
-        su_prefix = "su - #{@command.effective_user} -c "
-      end
       output_path = File.join(File.dirname(remote_script), 'output')
 
       # pipe the output to tee while capturing the exit code
@@ -37,6 +34,7 @@ module Proxy::RemoteExecution::Ssh
         exec 4>&-
         exit $exit_code
       SCRIPT
+      @logger.debug("executing script:\n#{script.lines.map { |line| "  | #{line}" }.join}")
       @connector.async_run(script) do |data|
         @command_buffer << data
       end
@@ -103,6 +101,18 @@ module Proxy::RemoteExecution::Ssh
     end
 
     private
+
+    def su_prefix
+      return if @command.effective_user.nil? || @command.effective_user == @command.ssh_user
+      case @command.effective_user_method
+      when 'sudo'
+        "sudo -n -u #{@command.effective_user} "
+      when 'su'
+        "su - #{@command.effective_user} -c "
+      else
+        raise "effective_user_method ''#{@command.effective_user_method}'' not supported"
+      end
+    end
 
     def open_connector
       raise 'Connector already opened' if @connector
