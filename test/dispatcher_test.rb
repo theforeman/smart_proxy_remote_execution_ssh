@@ -58,7 +58,7 @@ module Proxy::RemoteExecution::Ssh
       Support::DummyConnector.log.must_equal expected_connector_calls
     end
 
-    describe 'using effective user' do
+    describe 'using effective user with sudo disabled' do
       let :command do
         Dispatcher::Command.new(:id => '123',
                                 :host => 'test.example.com',
@@ -68,7 +68,7 @@ module Proxy::RemoteExecution::Ssh
                                 :suspended_action => suspended_action_events)
       end
 
-      it 'uses su to set the use to the effecitve one' do
+      it 'uses su to set the user to the effective one' do
         expected_connector_calls =
             [["root@test.example.com",
               :upload_file,
@@ -82,6 +82,30 @@ module Proxy::RemoteExecution::Ssh
       end
     end
 
+    describe 'using effective user with sudo enabled' do
+      let :command do
+        Dispatcher::Command.new(:id => '123',
+                                :host => 'test.example.com',
+                                :ssh_user => 'root',
+                                :effective_user => 'guest',
+                                :effective_user_method => 'sudo',
+                                :script => 'cat /etc/motd',
+                                :suspended_action => suspended_action_events)
+      end
+
+      it 'uses sudo to set the user to the effective one' do
+        expected_connector_calls =
+            [["root@test.example.com",
+              :upload_file,
+              "#{DATA_DIR}/foreman-proxy/foreman-ssh-cmd-123/script",
+              "#{DATA_DIR}/foreman-ssh-cmd-123/script"],
+             ["root@test.example.com",
+              :async_run,
+              "sudo -n -u guest #{DATA_DIR}/foreman-ssh-cmd-123/script"]]
+
+        Support::DummyConnector.log.must_equal expected_connector_calls
+      end
+    end
     describe 'client private key' do
       it 'uses the private key specified in the configuration' do
         connector_options = Support::DummyConnector.last.options

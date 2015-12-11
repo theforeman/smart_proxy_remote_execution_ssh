@@ -40,14 +40,15 @@ module Proxy::RemoteExecution::Ssh
     end
 
     def command
-      @command ||= Dispatcher::Command.new(:id               => input[:task_id],
-                                           :host             => input[:hostname],
-                                           :ssh_user         => input[:ssh_user] || 'root',
-                                           :effective_user   => input[:effective_user],
-                                           :script           => input[:script],
-                                           :host_public_key  => input[:host_public_key],
-                                           :verify_host      => input[:verify_host],
-                                           :suspended_action => suspended_action)
+      @command ||= Dispatcher::Command.new(:id                    => input[:task_id],
+                                           :host                  => input[:hostname],
+                                           :ssh_user              => input[:ssh_user] || 'root',
+                                           :effective_user        => input[:effective_user],
+                                           :script                => input[:script],
+                                           :effective_user_method => input[:effective_user_method],
+                                           :host_public_key       => input[:host_public_key],
+                                           :verify_host           => input[:verify_host],
+                                           :suspended_action      => suspended_action)
     end
 
     def init_run
