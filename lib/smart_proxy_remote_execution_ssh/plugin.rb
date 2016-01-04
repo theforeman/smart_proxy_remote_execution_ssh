@@ -10,5 +10,14 @@ module Proxy::RemoteExecution::Ssh
                      :local_working_dir     => '/var/tmp'
 
     plugin :ssh, Proxy::RemoteExecution::Ssh::VERSION
+    after_activation do
+      require 'smart_proxy_dynflow'
+      require 'smart_proxy_remote_execution_ssh/version'
+      require 'smart_proxy_remote_execution_ssh/connector'
+      require 'smart_proxy_remote_execution_ssh/command_update'
+      require 'smart_proxy_remote_execution_ssh/dispatcher'
+      require 'smart_proxy_remote_execution_ssh/command_action'
+      require 'smart_proxy_remote_execution_ssh/api'
+    end
   end
 end
