@@ -1,14 +1,4 @@
-require 'smart_proxy_dynflow'
-
-require 'smart_proxy_remote_execution_ssh/version'
 require 'smart_proxy_remote_execution_ssh/plugin'
-
-require 'smart_proxy_remote_execution_ssh/connector'
-require 'smart_proxy_remote_execution_ssh/command_update'
-require 'smart_proxy_remote_execution_ssh/dispatcher'
-require 'smart_proxy_remote_execution_ssh/command_action'
-
-require 'smart_proxy_remote_execution_ssh/api'
 
 module Proxy::RemoteExecution
   module Ssh
