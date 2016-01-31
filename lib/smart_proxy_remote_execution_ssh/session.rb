@@ -55,6 +55,10 @@ module Proxy::RemoteExecution::Ssh
           finish_command
         end
       end
+    rescue Net::SSH::Disconnect => e
+      @command_buffer.concat(CommandUpdate.encode_exception("Failed to refresh the connector", e, true))
+      refresh_command_buffer
+      finish_command
     rescue => e
       @command_buffer.concat(CommandUpdate.encode_exception("Failed to refresh the connector", e, false))
     ensure

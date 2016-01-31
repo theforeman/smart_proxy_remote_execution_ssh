@@ -85,6 +85,9 @@ module Proxy::RemoteExecution::Ssh
       tries = 0
       begin
         session.process(0)
+      rescue Net::SSH::Disconnect => e
+        session.shutdown!
+        raise e
       rescue => e
         @logger.error("Error while processing ssh channel: #{e.class} #{e.message}\n #{e.backtrace.join("\n")}")
         tries += 1
