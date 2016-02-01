@@ -5,6 +5,8 @@ module Proxy::RemoteExecution::Ssh
   # Dynflow action. It runs just one (actor) thread for all the commands
   # running in the system and updates the Dynflow actions periodically.
   class Session < ::Dynflow::Actor
+    EXPECTED_POWER_ACTION_MESSAGES = ["restart host", "shutdown host"]
+
     def initialize(options = {})
       @clock = options[:clock] || Dynflow::Clock.spawn('proxy-dispatcher-clock')
       @logger = options[:logger] || Logger.new($stderr)
@@ -56,7 +58,12 @@ module Proxy::RemoteExecution::Ssh
         end
       end
     rescue Net::SSH::Disconnect => e
-      @command_buffer.concat(CommandUpdate.encode_exception("Failed to refresh the connector", e, true))
+      check_expecting_disconnect
+      if @expecting_disconnect
+        @command_buffer << CommandUpdate::StatusData.new(0)
+      else
+        @command_buffer.concat(CommandUpdate.encode_exception("Failed to refresh the connector", e, true))
+      end
       refresh_command_buffer
       finish_command
     rescue => e
@@ -69,6 +76,7 @@ module Proxy::RemoteExecution::Ssh
     def refresh_command_buffer
       @logger.debug("command #{@command} got new output: #{@command_buffer.inspect}")
       command_update = CommandUpdate.new(@command_buffer)
+      check_expecting_disconnect
       @command.suspended_action << command_update
       @command_buffer = []
       if command_update.exit_status
@@ -188,6 +196,17 @@ module Proxy::RemoteExecution::Ssh
         @logger.debug("planning to refresh")
         @clock.ping(reference, Time.now + @refresh_interval, :refresh)
         @refresh_planned = true
+      end
+    end
+
+    # when a remote server disconnects, it's hard to tell if it was on purpose (when calling reboot)
+    # or it's an error. When it's expected, we expect the script to produce 'restart host' as
+    # its last command output
+    def check_expecting_disconnect
+      last_output = @command_buffer.reverse.find { |d| d.is_a? CommandUpdate::StdoutData }
+      return unless last_output
+      if EXPECTED_POWER_ACTION_MESSAGES.any? { |message| last_output.data =~ /^#{message}/ }
+        @expecting_disconnect = true
       end
     end
   end
