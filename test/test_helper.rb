@@ -13,6 +13,11 @@ require 'smart_proxy_dynflow'
 # DYNFLOW_TESTING_LOG_LEVEL = 0 # for debugging
 require 'smart_proxy_dynflow/testing'
 require 'smart_proxy_remote_execution_ssh'
+require 'smart_proxy_remote_execution_ssh/connector'
+require 'smart_proxy_remote_execution_ssh/command_update'
+require 'smart_proxy_remote_execution_ssh/dispatcher'
+require 'smart_proxy_remote_execution_ssh/command_action'
+require 'smart_proxy_remote_execution_ssh/api'
 
 DATA_DIR = File.expand_path('../data', __FILE__)
 FAKE_PRIVATE_KEY_FILE = File.join(DATA_DIR, 'fake_id_rsa')
