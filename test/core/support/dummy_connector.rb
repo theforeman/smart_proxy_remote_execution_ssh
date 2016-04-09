@@ -1,4 +1,4 @@
-require 'smart_proxy_remote_execution_ssh/connector'
+require 'smart_proxy_remote_execution_ssh_core/connector'
 
 module Support
   class DummyConnector < Proxy::RemoteExecution::Ssh::Connector
