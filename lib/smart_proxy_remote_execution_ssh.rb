@@ -5,7 +5,7 @@ require 'smart_proxy_remote_execution_ssh/plugin'
 module Proxy::RemoteExecution
   module Ssh
     class << self
-      def initialize
+      def validate!
         unless private_key_file
           raise "settings for `ssh_identity_key` not set"
         end
@@ -18,14 +18,6 @@ module Proxy::RemoteExecution
         unless File.exist?(public_key_file)
           raise "Ssh public key file #{public_key_file} doesn't exist"
         end
-
-        @dispatcher = Proxy::RemoteExecution::Ssh::Dispatcher.spawn('proxy-ssh-dispatcher',
-                                                                    :clock  => Proxy::Dynflow.instance.world.clock,
-                                                                    :logger => Proxy::Dynflow.instance.world.logger)
-      end
-
-      def dispatcher
-        @dispatcher || initialize
       end
 
       def private_key_file
@@ -39,4 +31,4 @@ module Proxy::RemoteExecution
   end
 end
 
-Proxy::Dynflow.after_initialize { Proxy::RemoteExecution::Ssh.initialize }
+Proxy::Dynflow.after_initialize { Proxy::RemoteExecution::Ssh.validate! }
