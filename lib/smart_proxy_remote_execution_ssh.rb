@@ -30,5 +30,3 @@ module Proxy::RemoteExecution
     end
   end
 end
-
-# Proxy::Dynflow.after_initialize { Proxy::RemoteExecution::Ssh.validate! }

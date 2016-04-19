@@ -14,6 +14,8 @@ module Proxy::RemoteExecution::Ssh
       require 'smart_proxy_dynflow'
       require 'smart_proxy_remote_execution_ssh/version'
       require 'smart_proxy_remote_execution_ssh/api'
+
+      Proxy::RemoteExecution::Ssh.validate!
     end
   end
 end
