@@ -21,7 +21,7 @@ module Proxy::RemoteExecution
       end
 
       def private_key_file
-        File.expand_path(Ssh::Plugin.settings.ssh_identity_key_file)
+        File.expand_path(Plugin.settings.ssh_identity_key_file)
       end
 
       def public_key_file
