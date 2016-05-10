@@ -15,6 +15,11 @@ module Proxy::RemoteExecution::Ssh
       require 'smart_proxy_remote_execution_ssh/version'
       require 'smart_proxy_remote_execution_ssh/api'
 
+      begin
+        require 'smart_proxy_remote_execution_ssh_core'
+      rescue LoadError
+      end
+
       Proxy::RemoteExecution::Ssh.validate!
     end
   end
