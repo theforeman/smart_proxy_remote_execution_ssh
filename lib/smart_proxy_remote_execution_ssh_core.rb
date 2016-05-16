@@ -7,38 +7,40 @@ require 'smart_proxy_remote_execution_ssh_core/connector'
 require 'smart_proxy_remote_execution_ssh_core/dispatcher'
 require 'smart_proxy_remote_execution_ssh_core/session'
 
-module Proxy::RemoteExecution
-  module Ssh
-    class << self
-      def initialize
-        unless private_key_file
-          raise "settings for `ssh_identity_key` not set"
+module Proxy
+  module RemoteExecution
+    module Ssh
+      class << self
+        def initialize
+          unless private_key_file
+            raise "settings for `ssh_identity_key` not set"
+          end
+
+          unless File.exist?(private_key_file)
+            raise "Ssh public key file #{private_key_file} doesn't exist.\n"\
+              "You can generate one with `ssh-keygen -t rsa -b 4096 -f #{private_key_file} -N ''`"
+          end
+
+          unless File.exist?(public_key_file)
+            raise "Ssh public key file #{public_key_file} doesn't exist"
+          end
+
+          @dispatcher = Proxy::RemoteExecution::Ssh::Dispatcher.spawn('proxy-ssh-dispatcher',
+                                                                      :clock  => SmartProxyDynflowCore::Core.instance.world.clock,
+                                                                      :logger => SmartProxyDynflowCore::Core.instance.world.logger)
         end
 
-        unless File.exist?(private_key_file)
-          raise "Ssh public key file #{private_key_file} doesn't exist.\n"\
-            "You can generate one with `ssh-keygen -t rsa -b 4096 -f #{private_key_file} -N ''`"
+        def dispatcher
+          @dispatcher || initialize
         end
 
-        unless File.exist?(public_key_file)
-          raise "Ssh public key file #{public_key_file} doesn't exist"
+        def private_key_file
+          File.expand_path(Settings.instance.ssh_identity_key_file)
         end
 
-        @dispatcher = Proxy::RemoteExecution::Ssh::Dispatcher.spawn('proxy-ssh-dispatcher',
-                                                                    :clock  => SmartProxyDynflowCore::Core.instance.world.clock,
-                                                                    :logger => SmartProxyDynflowCore::Core.instance.world.logger)
-      end
-
-      def dispatcher
-        @dispatcher || initialize
-      end
-
-      def private_key_file
-        File.expand_path(Settings.instance.ssh_identity_key_file)
-      end
-
-      def public_key_file
-        File.expand_path("#{private_key_file}.pub")
+        def public_key_file
+          File.expand_path("#{private_key_file}.pub")
+        end
       end
     end
   end

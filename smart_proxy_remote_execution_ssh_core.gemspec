@@ -14,7 +14,7 @@ Gem::Specification.new do |gem|
     Ssh remote execution provider for Foreman Smart-Proxy
   EOS
 
-  gem.files            = Dir['lib/smart_proxy_remote_execution_ssh_core', 'LICENSE', 'README.md',
+  gem.files            = Dir['lib/smart_proxy_remote_execution_ssh_core.rb', 'LICENSE', 'README.md',
                              '{bundler.d,lib/smart_proxy_remote_execution_ssh_core,settings.d}/**/*']
   gem.extra_rdoc_files = ['README.md', 'LICENSE']
   gem.test_files       = gem.files.grep(%r{^(test|spec|features)/})
@@ -31,6 +31,6 @@ Gem::Specification.new do |gem|
 
   gem.add_runtime_dependency('smart_proxy_dynflow_core', '>= 0.0.7')
 
-  gem.add_runtime_dependency('net-ssh')
+  gem.add_runtime_dependency('net-ssh', '<= 2.9.4')
   gem.add_runtime_dependency('net-scp')
 end
