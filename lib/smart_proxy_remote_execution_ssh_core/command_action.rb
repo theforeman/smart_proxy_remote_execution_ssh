@@ -2,7 +2,7 @@ module Proxy
   module RemoteExecution
     module Ssh
       class CommandAction < ::Dynflow::Action
-        include Dynflow::Action::Cancellable
+        include ::Dynflow::Action::Cancellable
         include ::SmartProxyDynflowCore::Callback::PlanHelper
 
         def plan(input)
