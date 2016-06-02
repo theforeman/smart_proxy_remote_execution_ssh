@@ -10,7 +10,6 @@ require 'smart_proxy_for_testing'
 require 'smart_proxy_dynflow'
 
 # DYNFLOW_TESTING_LOG_LEVEL = 0 # for debugging
-require 'smart_proxy_dynflow/testing'
 require 'smart_proxy_remote_execution_ssh'
 require 'smart_proxy_remote_execution_ssh/api'
 
