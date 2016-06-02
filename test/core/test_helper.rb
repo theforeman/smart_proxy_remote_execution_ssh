@@ -37,6 +37,8 @@ end
 prepare_fake_keys
 
 SmartProxyDynflowCore::Settings.instance.database = nil
+SmartProxyDynflowCore::Settings.instance.log_file = nil
+SmartProxyDynflowCore::Settings.instance.standalone = true
 WORLD = SmartProxyDynflowCore::Dynflow::Testing.create_world
 SmartProxyDynflowCore::Core.instance.world = WORLD
 

@@ -20,9 +20,9 @@ module Proxy
             init_run
           when CommandUpdate
             process_update(event)
-          when Dynflow::Action::Cancellable::Cancel
+          when ::Dynflow::Action::Cancellable::Cancel
             kill_run
-          when Dynflow::Action::Skip
+          when ::Dynflow::Action::Skip
             # do nothing
           else
             raise "Unexpected event #{event.inspect}"
