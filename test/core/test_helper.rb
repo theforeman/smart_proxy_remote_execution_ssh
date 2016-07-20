@@ -2,10 +2,9 @@ require 'minitest/autorun'
 
 ENV['RACK_ENV'] = 'test'
 
-$LOAD_PATH << File.join(File.dirname(__FILE__), '..', 'lib')
+$LOAD_PATH << File.join(File.dirname(__FILE__), '..', '..', 'lib')
 require "mocha/setup"
 require "rack/test"
-# require 'smart_proxy_for_testing'
 require 'support/dummy_connector'
 
 require 'dynflow'
@@ -18,14 +17,10 @@ require 'smart_proxy_remote_execution_ssh_core/connector'
 require 'smart_proxy_remote_execution_ssh_core/command_update'
 require 'smart_proxy_remote_execution_ssh_core/dispatcher'
 require 'smart_proxy_remote_execution_ssh_core/command_action'
-# require 'smart_proxy_remote_execution_ssh_core/api'
 
 DATA_DIR = File.expand_path('../data', __FILE__)
 FAKE_PRIVATE_KEY_FILE = File.join(DATA_DIR, 'fake_id_rsa')
 FAKE_PUBLIC_KEY_FILE = "#{FAKE_PRIVATE_KEY_FILE}.pub"
-
-logdir = File.join(File.dirname(__FILE__), '..', 'logs')
-FileUtils.mkdir_p(logdir) unless File.exist?(logdir)
 
 def prepare_fake_keys
   Proxy::RemoteExecution::Ssh::Settings.create!(:local_working_dir => DATA_DIR, :ssh_identity_key_file => FAKE_PRIVATE_KEY_FILE)
