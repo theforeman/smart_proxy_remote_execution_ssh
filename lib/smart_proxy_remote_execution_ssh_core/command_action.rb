@@ -38,7 +38,7 @@ module Proxy
         end
 
         def rescue_strategy_for_self
-          Dynflow::Action::Rescue::Skip
+          ::Dynflow::Action::Rescue::Skip
         end
 
         def command
