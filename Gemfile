@@ -11,7 +11,7 @@ end
 if RUBY_VERSION < "2.0"
   gem 'json', '< 2.0.0'
   gem 'net-ssh', '<= 2.10'
-  gem 'rest-client', '< 1.7'
+  gem 'rest-client', '< 2'
   gem 'mime-types', '~> 1.0'
 end
 
