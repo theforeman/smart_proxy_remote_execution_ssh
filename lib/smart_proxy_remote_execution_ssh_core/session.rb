@@ -131,6 +131,7 @@ module Proxy
           options = { :logger => @logger }
           options[:known_hosts_file] = prepare_known_hosts
           options[:client_private_key_file] = @client_private_key_file
+          options[:port] = @command.ssh_port
           @connector = @connector_class.new(@command.host, @command.ssh_user, options)
         end
 

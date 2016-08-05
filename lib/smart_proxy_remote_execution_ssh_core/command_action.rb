@@ -45,6 +45,7 @@ module Proxy
           @command ||= Dispatcher::Command.new(:id                    => input[:task_id],
                                                :host                  => input[:hostname],
                                                :ssh_user              => input[:ssh_user] || 'root',
+                                               :ssh_port              => input[:ssh_port] || 22,
                                                :effective_user        => input[:effective_user],
                                                :script                => input[:script],
                                                :effective_user_method => input[:effective_user_method],
