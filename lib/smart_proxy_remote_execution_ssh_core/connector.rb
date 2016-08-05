@@ -12,6 +12,7 @@ module Proxy
 
         def initialize(host, user, options = {})
           @host = host
+          @port = options[:port] || 22
           @user = user
           @logger = options[:logger] || Logger.new($stderr)
           @client_private_key_file = options[:client_private_key_file]
@@ -136,6 +137,7 @@ module Proxy
 
         def ssh_options
           ssh_options = {}
+          ssh_options[:port] = @port if @port
           ssh_options[:keys] = [@client_private_key_file] if @client_private_key_file
           ssh_options[:user_known_hosts_file] = @known_hosts_file if @known_hosts_file
           ssh_options[:keys_only] = true

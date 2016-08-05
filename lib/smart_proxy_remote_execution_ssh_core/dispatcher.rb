@@ -9,7 +9,7 @@ module Proxy
       class Dispatcher < ::Dynflow::Actor
         # command comming from action
         class Command
-          attr_reader :id, :host, :ssh_user, :effective_user, :effective_user_method, :script, :host_public_key, :suspended_action
+          attr_reader :id, :host, :ssh_user, :ssh_port, :effective_user, :effective_user_method, :script, :host_public_key, :suspended_action
 
           def initialize(data)
             validate!(data)
@@ -17,6 +17,7 @@ module Proxy
             @id                    = data[:id]
             @host                  = data[:host]
             @ssh_user              = data[:ssh_user]
+            @ssh_port              = data[:ssh_port]
             @effective_user        = data[:effective_user]
             @effective_user_method = data[:effective_user_method] || 'su'
             @script                = data[:script]
