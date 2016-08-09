@@ -3,7 +3,7 @@ require 'ostruct'
 module Proxy
   module RemoteExecution
     module Ssh
-      class Settings < OpenStruct
+      class Settings < SmartProxyDynflowCore::Settings
 
         DEFAULT_SETTINGS = {
           :enabled => true,

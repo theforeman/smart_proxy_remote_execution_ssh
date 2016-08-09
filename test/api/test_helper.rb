@@ -2,7 +2,7 @@ require 'minitest/autorun'
 
 ENV['RACK_ENV'] = 'test'
 
-$LOAD_PATH << File.join(File.dirname(__FILE__), '..', 'lib')
+$LOAD_PATH << File.join(File.dirname(__FILE__), '..', '..', 'lib')
 require "mocha/setup"
 require "rack/test"
 require 'smart_proxy_for_testing'
@@ -10,7 +10,6 @@ require 'smart_proxy_for_testing'
 require 'smart_proxy_dynflow'
 
 # DYNFLOW_TESTING_LOG_LEVEL = 0 # for debugging
-require 'smart_proxy_dynflow/testing'
 require 'smart_proxy_remote_execution_ssh'
 require 'smart_proxy_remote_execution_ssh/api'
 
@@ -18,7 +17,7 @@ DATA_DIR = File.expand_path('../data', __FILE__)
 FAKE_PRIVATE_KEY_FILE = File.join(DATA_DIR, 'fake_id_rsa')
 FAKE_PUBLIC_KEY_FILE = "#{FAKE_PRIVATE_KEY_FILE}.pub"
 
-logdir = File.join(File.dirname(__FILE__), '..', 'logs')
+logdir = File.join(File.dirname(__FILE__), '..', '..', 'logs')
 FileUtils.mkdir_p(logdir) unless File.exist?(logdir)
 
 def prepare_fake_keys
