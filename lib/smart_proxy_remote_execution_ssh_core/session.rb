@@ -162,7 +162,7 @@ module Proxy
 
         def cp_script_to_remote
           local_script_file = write_command_file_locally('script', sanitize_script(@command.script))
-          File.chmod(0777, local_script_file)
+          File.chmod(0444, local_script_file)
           remote_script_file = remote_command_file('script')
           @connector.upload_file(local_script_file, remote_script_file)
           return remote_script_file
