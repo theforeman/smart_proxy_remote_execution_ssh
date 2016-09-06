@@ -16,8 +16,12 @@ module Proxy::RemoteExecution::Ssh
       require 'smart_proxy_remote_execution_ssh/api'
 
       begin
-        require 'smart_proxy_remote_execution_ssh_core'
-      rescue LoadError
+        require 'smart_proxy_dynflow_core'
+        require 'foreman_remote_execution_core'
+        ForemanRemoteExecutionCore.initialize_settings(Proxy::RemoteExecution::Ssh::Plugin.settings.to_h)
+      rescue LoadError # rubocop:disable Lint/HandleExceptions
+        # Dynflow core is not available in the proxy, will be handled
+        # by standalone Dynflow core
       end
 
       Proxy::RemoteExecution::Ssh.validate!
