@@ -1,12 +1,12 @@
 source 'https://rubygems.org'
-
-gemspec :name => 'smart_proxy_remote_execution_ssh_core'
+gemspec
 
 group :development do
   gem 'smart_proxy', :git => "https://github.com/theforeman/smart-proxy", :branch => "develop"
   gem 'smart_proxy_dynflow', :git => "https://github.com/theforeman/smart_proxy_dynflow"
   gem 'pry'
 end
+
 
 if RUBY_VERSION < "2.0"
   gem 'json', '< 2.0.0'

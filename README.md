@@ -13,8 +13,10 @@ This a plugin for foreman smart-proxy allowing using ssh for the
 Add this line to your smart proxy bundler.d/ssh.rb gemfile:
 
 ```ruby
-gem 'smart_proxy_dynflow', :git => 'https://github.com/iNecas/smart_proxy_dynflow.git'
-gem 'smart_proxy_ssh', :git => 'https://github.com/iNecas/smart_proxy_ssh.git'
+gem 'smart_proxy_dynflow', :git => 'https://github.com/theforeman/smart_proxy_dynflow.git'
+gem 'smart_proxy_dynflow_core', :git => 'https://github.com/theforeman/smart_proxy_dynflow.git'
+gem 'foreman_remote_execution_core', :git => 'https://github.com/theforeman/foreman_remote_execution.git'
+gem 'smart_proxy_remote_execution_ssh', :git => 'https://github.com/theforeman/smart_proxy_remote_execution_ssh.git'
 ```
 
 Enable the plugins in your smart proxy:
