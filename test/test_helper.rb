@@ -17,7 +17,7 @@ DATA_DIR = File.expand_path('../data', __FILE__)
 FAKE_PRIVATE_KEY_FILE = File.join(DATA_DIR, 'fake_id_rsa')
 FAKE_PUBLIC_KEY_FILE = "#{FAKE_PRIVATE_KEY_FILE}.pub"
 
-logdir = File.join(File.dirname(__FILE__), '..', '..', 'logs')
+logdir = File.join(File.dirname(__FILE__), '..', 'logs')
 FileUtils.mkdir_p(logdir) unless File.exist?(logdir)
 
 def prepare_fake_keys
