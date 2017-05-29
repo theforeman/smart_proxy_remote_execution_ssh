@@ -8,7 +8,8 @@ module Proxy::RemoteExecution::Ssh
                      :ssh_user              => 'root',
                      :remote_working_dir    => '/var/tmp',
                      :local_working_dir     => '/var/tmp',
-                     :kerberos_auth         => false
+                     :kerberos_auth         => false,
+                     :async_ssh             => false
 
     plugin :ssh, Proxy::RemoteExecution::Ssh::VERSION
     after_activation do

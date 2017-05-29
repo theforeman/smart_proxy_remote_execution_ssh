@@ -4,3 +4,4 @@
 :local_working_dir: '/var/tmp'
 :remote_working_dir: '/var/tmp'
 # :kerberos_auth: false
+# :async_ssh: false
