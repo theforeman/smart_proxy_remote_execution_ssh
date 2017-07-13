@@ -5,3 +5,4 @@
 :remote_working_dir: '/var/tmp'
 # :kerberos_auth: false
 # :async_ssh: false
+# :runner_refresh_interval: 60
