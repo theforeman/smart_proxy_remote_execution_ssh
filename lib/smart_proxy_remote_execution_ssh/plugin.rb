@@ -4,12 +4,13 @@ module Proxy::RemoteExecution::Ssh
     https_rackup_path File.expand_path("http_config.ru", File.expand_path("../", __FILE__))
 
     settings_file "remote_execution_ssh.yml"
-    default_settings :ssh_identity_key_file => '~/.ssh/id_rsa_foreman_proxy',
-                     :ssh_user              => 'root',
-                     :remote_working_dir    => '/var/tmp',
-                     :local_working_dir     => '/var/tmp',
-                     :kerberos_auth         => false,
-                     :async_ssh             => false
+    default_settings :ssh_identity_key_file   => '~/.ssh/id_rsa_foreman_proxy',
+                     :ssh_user                => 'root',
+                     :remote_working_dir      => '/var/tmp',
+                     :local_working_dir       => '/var/tmp',
+                     :kerberos_auth           => false,
+                     :async_ssh               => false,
+                     :runner_refresh_interval => nil
 
     plugin :ssh, Proxy::RemoteExecution::Ssh::VERSION
     after_activation do
