@@ -9,8 +9,7 @@ module Proxy::RemoteExecution::Ssh
                      :remote_working_dir      => '/var/tmp',
                      :local_working_dir       => '/var/tmp',
                      :kerberos_auth           => false,
-                     :async_ssh               => false,
-                     :runner_refresh_interval => nil
+                     :async_ssh               => false
 
     plugin :ssh, Proxy::RemoteExecution::Ssh::VERSION
     after_activation do
