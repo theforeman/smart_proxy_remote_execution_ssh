@@ -5,4 +5,8 @@
 :remote_working_dir: '/var/tmp'
 # :kerberos_auth: false
 # :async_ssh: false
+
+# Defines how often (in seconds) should the runner check
+# for new data leave empty to use the runner's default
+# (1 second for regular, 60 seconds with async_ssh enabled)
 # :runner_refresh_interval:
