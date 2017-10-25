@@ -10,3 +10,7 @@
 # for new data leave empty to use the runner's default
 # (1 second for regular, 60 seconds with async_ssh enabled)
 # :runner_refresh_interval:
+
+# Defines the verbosity of logging coming from Net::SSH
+# one of :debug, :info, :warn, :error, :fatal
+# :ssh_log_level: fatal
