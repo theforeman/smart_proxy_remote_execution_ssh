@@ -7,15 +7,27 @@ group :development do
   gem 'pry'
 end
 
-
-if RUBY_VERSION < "2.0"
-  gem 'json', '< 2.0.0'
-  gem 'net-ssh', '<= 2.10'
-  gem 'rest-client', '< 2'
-  gem 'mime-types', '~> 1.0'
+group :test do
+  if RUBY_VERSION < '2.1'
+    gem 'public_suffix', '< 3'
+  else
+    gem 'public_suffix'
+  end
+  
+  if RUBY_VERSION < '2.2'
+    gem 'rack-test', '< 0.8'
+  else
+    gem 'rack-test'
+  end
 end
 
-gem 'sinatra', '< 2' if RUBY_VERSION < '2.2'
+if RUBY_VERSION < '2.2'
+  gem 'sinatra', '< 2'
+  gem 'rack', '>= 1.1', '< 2.0.0'
+else
+  gem 'sinatra'
+  gem 'rack', '>= 1.1'
+end
 
 # load local gemfile
 local_gemfile = File.join(File.dirname(__FILE__), 'Gemfile.local.rb')
