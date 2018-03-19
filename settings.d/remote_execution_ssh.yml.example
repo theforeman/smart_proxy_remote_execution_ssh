@@ -13,4 +13,5 @@
 
 # Defines the verbosity of logging coming from Net::SSH
 # one of :debug, :info, :warn, :error, :fatal
+# must be lower than general log level
 # :ssh_log_level: fatal
