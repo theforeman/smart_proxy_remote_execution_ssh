@@ -29,8 +29,6 @@ def prepare_fake_keys
   File.write(FAKE_PUBLIC_KEY_FILE, '===public-key===')
 end
 
-prepare_fake_keys
-
 class MiniTest::Test
   def setup
     prepare_fake_keys
