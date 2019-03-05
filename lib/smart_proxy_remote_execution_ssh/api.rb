@@ -3,10 +3,14 @@ require 'net/ssh'
 module Proxy::RemoteExecution
   module Ssh
     class Api < ::Sinatra::Base
+      include Sinatra::Authorization::Helpers
+
       get "/pubkey" do
         File.read(Ssh.public_key_file)
       end
+
       post "/session" do
+        do_authorize
         if env["HTTP_CONNECTION"] != "upgrade" or env["HTTP_UPGRADE"] != "raw"
           return [ 400, "Invalid request: /ssh/session requires connection upgrade to 'raw'" ]
         end
@@ -28,7 +32,9 @@ module Proxy::RemoteExecution
         ssh_options[:number_of_password_prompts] = 1
 
         socket = nil
-        if env['rack.hijack?']
+        if env['WEBRICK_SOCKET']
+          socket = env['WEBRICK_SOCKET']
+        elsif env['rack.hijack?']
           env['rack.hijack'].call
           socket = env['rack.hijack_io']
         end

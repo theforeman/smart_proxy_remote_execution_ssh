@@ -1,5 +1,6 @@
 require 'smart_proxy_remote_execution_ssh/version'
 require 'smart_proxy_dynflow'
+require 'smart_proxy_remote_execution_ssh/webrick_ext'
 require 'smart_proxy_remote_execution_ssh/plugin'
 
 module Proxy::RemoteExecution
