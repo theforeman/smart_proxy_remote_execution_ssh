@@ -31,7 +31,7 @@ module Proxy::RemoteExecution
       end
 
       post "/session" do
-        do_authorize
+        do_authorize_any
         if env["HTTP_CONNECTION"] != "upgrade" or env["HTTP_UPGRADE"] != "raw"
           return [ 400, "Invalid request: /ssh/session requires connection upgrade to 'raw'" ]
         end
