@@ -7,5 +7,5 @@ module SmartProxyRemoteExecutionSsh
       end
     end
   end
-  ::WEBrick::HTTPRequest.prepend(WEBrickExt::HTTPRequestExt)
+  ::WEBrick::HTTPRequest.send(:prepend, WEBrickExt::HTTPRequestExt)
 end
