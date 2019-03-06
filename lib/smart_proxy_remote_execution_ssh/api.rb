@@ -1,5 +1,26 @@
 require 'net/ssh'
 
+# When hijacking the socket of a TLS connection with Puma, we get a
+# Puma::MiniSSL::Socket, which isn't really a Socket.  We need to add
+# recv and send for the benefit of the Net::SSH::BufferedIo mixin, and
+# closed? for our own convenience.
+
+module Puma
+  module MiniSSL
+    class Socket
+      def closed?
+        @socket.closed?
+      end
+      def recv(n)
+        readpartial(n)
+      end
+      def send(mesg, flags)
+        write(mesg)
+      end
+    end
+  end
+end
+
 module Proxy::RemoteExecution
   module Ssh
     class Api < ::Sinatra::Base
@@ -35,7 +56,10 @@ module Proxy::RemoteExecution
         if env['WEBRICK_SOCKET']
           socket = env['WEBRICK_SOCKET']
         elsif env['rack.hijack?']
-          env['rack.hijack'].call
+          begin
+            env['rack.hijack'].call
+          rescue NotImplementedError
+          end
           socket = env['rack.hijack_io']
         end
         if !socket
