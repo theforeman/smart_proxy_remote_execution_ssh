@@ -1,9 +1,10 @@
 require 'net/ssh'
 
-# When hijacking the socket of a TLS connection with Puma, we get a
-# Puma::MiniSSL::Socket, which isn't really a Socket.  We need to add
-# recv and send for the benefit of the Net::SSH::BufferedIo mixin, and
-# closed? for our own convenience.
+# When hijacking the socket of a TLS connection, we get a
+# OpenSSL::SSL::SSLSocket or Puma::MiniSSL::Socket, which don't behave
+# the same as real IO::Sockets.  We need to add recv and send for the
+# benefit of the Net::SSH::BufferedIo mixin, and closed? for our own
+# convenience.
 
 module Puma
   module MiniSSL
@@ -16,6 +17,50 @@ module Puma
       end
       def send(mesg, flags)
         write(mesg)
+      end
+    end
+  end
+end
+
+module OpenSSL
+  module SSL
+    class SSLSocket
+      def recv(n)
+        res = ""
+        begin
+          # To drain a SSLSocket before we can go back to the event
+          # loop, we need to repeatedly call read_nonblock; a single
+          # call is not enough.
+          while true
+            res += read_nonblock(n)
+          end
+        rescue IO::WaitReadable
+          # Sometimes there is no payload after reading everything
+          # from the underlying socket, but a empty string is treated
+          # as EOF by Net::SSH. So we block a bit until we have
+          # something to return.
+          if res == ""
+            IO.select([io])
+            retry
+          else
+            res
+          end
+        rescue IO::WaitWritable
+          # A renegotiation is happening, let it proceed.
+          IO.select(nil, [io])
+          retry
+        end
+      end
+
+      def send(mesg, flags)
+        begin
+          write_nonblock(mesg)
+        rescue IO::WaitWritable
+          0
+        rescue IO::WaitReadable
+          IO.select([io])
+          retry
+        end
       end
     end
   end
@@ -141,10 +186,16 @@ module Proxy::RemoteExecution
           end
         rescue Net::SSH::AuthenticationFailed => e
           send_error.call(401, e.message)
+        rescue Errno::EHOSTUNREACH
+          send_error.call(400, "No route to #{host}")
+        rescue SystemCallError => e
+          send_error.call(400, e.message)
+        rescue SocketError => e
+          send_error.call(400, e.message)
         rescue Exception => e
           logger.error e.message
           e.backtrace.each { |line| logger.debug line }
-          send_error.call(500, "Internal error")
+          send_error.call(500, "Internal error") unless started
         end
         if not socket.closed?
           socket.wait_for_pending_sends
