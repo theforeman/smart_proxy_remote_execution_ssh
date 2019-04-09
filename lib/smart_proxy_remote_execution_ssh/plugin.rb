@@ -15,6 +15,7 @@ module Proxy::RemoteExecution::Ssh
     after_activation do
       require 'smart_proxy_dynflow'
       require 'smart_proxy_remote_execution_ssh/version'
+      require 'smart_proxy_remote_execution_ssh/cockpit'
       require 'smart_proxy_remote_execution_ssh/api'
 
       begin
