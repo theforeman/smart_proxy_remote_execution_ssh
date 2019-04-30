@@ -103,8 +103,8 @@ module Proxy::RemoteExecution
 
       def hijack!
         @socket = nil
-        if @env['WEBRICK_SOCKET']
-          @socket = @env['WEBRICK_SOCKET']
+        if @env['ext.hijack!']
+	  @socket = @env['ext.hijack!'].call
         elsif @env['rack.hijack?']
           begin
             @env['rack.hijack'].call
