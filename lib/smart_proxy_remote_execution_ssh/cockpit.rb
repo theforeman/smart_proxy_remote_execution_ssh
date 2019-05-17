@@ -169,7 +169,7 @@ module Proxy::RemoteExecution
 
               ch.on_request('exit-status') do |ch, data|
                 code = data.read_long
-                send_start.call if code.zero?
+                send_start if code.zero?
                 err_buf += "Process exited with code #{code}.\r\n"
                 ch.close
               end
