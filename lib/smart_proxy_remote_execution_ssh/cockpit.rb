@@ -29,7 +29,7 @@ module Proxy::RemoteExecution
       end
 
       def self.build(socket)
-        klass = [OpenSSLBufferedSocket, StandardBufferedSocket].find do |potential_class|
+        klass = [OpenSSLBufferedSocket, MiniSSLBufferedSocket, StandardBufferedSocket].find do |potential_class|
           potential_class.applies_for?(socket)
         end
         raise "No suitable implementation of buffered socket available for #{socket.inspect}" unless klass
@@ -87,6 +87,25 @@ module Proxy::RemoteExecution
           IO.select([@socket.to_io])
           retry
         end
+      end
+    end
+
+    class MiniSSLBufferedSocket < BufferedSocket
+      def self.applies_for?(socket)
+        socket.is_a? ::Puma::MiniSSL::Socket
+      end
+      def_delegators(:@socket, :read_nonblock, :write_nonblock, :close)
+
+      def recv(n)
+        @socket.read_nonblock(n)
+      end
+
+      def send(mesg, flags)
+        @socket.write_nonblock(mesg)
+      end
+
+      def closed?
+        @socket.to_io.closed?
       end
     end
 
