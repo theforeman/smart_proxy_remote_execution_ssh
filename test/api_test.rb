@@ -27,12 +27,12 @@ module Proxy::RemoteExecution::Ssh
     describe '/pubkey' do
       it 'returns the content of the public key' do
         get '/pubkey'
-        last_response.body.must_equal '===public-key==='
+        _(last_response.body).must_equal '===public-key==='
       end
     end
 
     def with_known_hosts
-      host_file = Tempfile.new
+      host_file = Tempfile.new('ssh_test')
       host_file.write(KNOWN_HOSTS)
       host_file.close
       Net::SSH::KnownHosts.stubs(:hostfiles).returns([host_file.path])
