@@ -6,13 +6,6 @@
 # Note that changes in the inspected code, or installation of new
 # versions of RuboCop, may require this file to be generated again.
 
-# Offense count: 4
-# Configuration parameters: Include.
-# Include: **/*.gemfile, **/Gemfile, **/gems.rb
-Bundler/DuplicatedGem:
-  Exclude:
-    - 'Gemfile'
-
 # Offense count: 3
 # Cop supports --auto-correct.
 # Configuration parameters: TreatCommentsAsGroupSeparators, Include.
@@ -28,12 +21,6 @@ Gemspec/OrderedDependencies:
 Layout/BlockAlignment:
   Exclude:
     - 'lib/smart_proxy_remote_execution_ssh/webrick_ext.rb'
-
-# Offense count: 1
-# Cop supports --auto-correct.
-Layout/EmptyLineAfterMagicComment:
-  Exclude:
-    - 'smart_proxy_remote_execution_ssh.gemspec'
 
 # Offense count: 2
 # Cop supports --auto-correct.
@@ -68,20 +55,6 @@ Layout/SpaceInsideArrayLiteralBrackets:
   Exclude:
     - 'lib/smart_proxy_remote_execution_ssh/api.rb'
 
-# Offense count: 1
-# Cop supports --auto-correct.
-# Configuration parameters: EnforcedStyle.
-# SupportedStyles: final_newline, final_blank_line
-Layout/TrailingEmptyLines:
-  Exclude:
-    - 'Gemfile'
-
-# Offense count: 1
-# Cop supports --auto-correct.
-# Configuration parameters: AllowInHeredoc.
-Layout/TrailingWhitespace:
-  Exclude:
-    - 'Gemfile'
 
 # Offense count: 1
 Lint/LiteralAsCondition:
@@ -127,7 +100,6 @@ Metrics/BlockLength:
 # ForbiddenDelimiters: (?-mix:(^|\s)(EO[A-Z]{1}|END)(\s|$))
 Naming/HeredocDelimiterNaming:
   Exclude:
-    - 'smart_proxy_remote_execution_ssh.gemspec'
     - 'test/api_test.rb'
 
 # Offense count: 1
@@ -144,18 +116,11 @@ Naming/MethodParameterName:
   Exclude:
     - 'lib/smart_proxy_remote_execution_ssh/cockpit.rb'
 
-# Offense count: 1
-# Cop supports --auto-correct.
-Style/Encoding:
-  Exclude:
-    - 'smart_proxy_remote_execution_ssh.gemspec'
-
 # Offense count: 4
 # Cop supports --auto-correct.
 Style/ExpandPathArguments:
   Exclude:
     - 'lib/smart_proxy_remote_execution_ssh/plugin.rb'
-    - 'smart_proxy_remote_execution_ssh.gemspec'
     - 'test/test_helper.rb'
 
 # Offense count: 1
