@@ -42,7 +42,6 @@ Layout/EmptyLineAfterMagicComment:
 Layout/EmptyLinesAroundModuleBody:
   Exclude:
     - 'lib/smart_proxy_remote_execution_ssh/api.rb'
-    - 'lib/smart_proxy_remote_execution_ssh/cockpit.rb'
 
 # Offense count: 1
 # Cop supports --auto-correct.
@@ -51,13 +50,6 @@ Layout/EmptyLinesAroundModuleBody:
 Layout/HeredocIndentation:
   Exclude:
     - 'test/api_test.rb'
-
-# Offense count: 1
-# Cop supports --auto-correct.
-# Configuration parameters: Width, IgnoredPatterns.
-Layout/IndentationWidth:
-  Exclude:
-    - 'lib/smart_proxy_remote_execution_ssh/cockpit.rb'
 
 # Offense count: 3
 # Cop supports --auto-correct.
@@ -75,14 +67,6 @@ Layout/MultilineMethodCallIndentation:
 Layout/SpaceInsideArrayLiteralBrackets:
   Exclude:
     - 'lib/smart_proxy_remote_execution_ssh/api.rb'
-    - 'lib/smart_proxy_remote_execution_ssh/cockpit.rb'
-
-# Offense count: 1
-# Cop supports --auto-correct.
-# Configuration parameters: IndentationWidth.
-Layout/Tab:
-  Exclude:
-    - 'lib/smart_proxy_remote_execution_ssh/cockpit.rb'
 
 # Offense count: 1
 # Cop supports --auto-correct.
@@ -130,7 +114,7 @@ Lint/SuppressedException:
 
 # Offense count: 1
 Metrics/AbcSize:
-  Max: 36
+  Max: 38
 
 # Offense count: 4
 # Configuration parameters: CountComments, ExcludedMethods.
@@ -176,12 +160,6 @@ Style/ExpandPathArguments:
 
 # Offense count: 1
 # Cop supports --auto-correct.
-Style/InfiniteLoop:
-  Exclude:
-    - 'lib/smart_proxy_remote_execution_ssh/cockpit.rb'
-
-# Offense count: 1
-# Cop supports --auto-correct.
 # Configuration parameters: EnforcedStyle.
 # SupportedStyles: line_count_dependent, lambda, literal
 Style/Lambda:
@@ -205,20 +183,6 @@ Style/MutableConstant:
 Style/NumericPredicate:
   Exclude:
     - 'spec/**/*'
-    - 'lib/smart_proxy_remote_execution_ssh/cockpit.rb'
-
-# Offense count: 1
-# Cop supports --auto-correct.
-# Configuration parameters: PreferredDelimiters.
-Style/PercentLiteralDelimiters:
-  Exclude:
-    - 'lib/smart_proxy_remote_execution_ssh/cockpit.rb'
-
-# Offense count: 1
-# Cop supports --auto-correct.
-Style/RedundantBegin:
-  Exclude:
-    - 'lib/smart_proxy_remote_execution_ssh/cockpit.rb'
 
 # Offense count: 1
 # Cop supports --auto-correct.
@@ -233,8 +197,3 @@ Style/Semicolon:
   Exclude:
     - 'lib/smart_proxy_remote_execution_ssh/webrick_ext.rb'
 
-# Offense count: 1
-# Cop supports --auto-correct.
-Style/WhileUntilModifier:
-  Exclude:
-    - 'lib/smart_proxy_remote_execution_ssh/cockpit.rb'

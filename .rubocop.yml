@@ -42,9 +42,6 @@ Lint/UnusedBlockArgument:
 Lint/UnusedMethodArgument:
   Enabled: false
 
-Metrics/AbcSize:
-  Max: 30
-
 Metrics/ClassLength:
   Max: 130
   Exclude:
