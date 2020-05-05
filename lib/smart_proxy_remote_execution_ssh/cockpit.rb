@@ -9,7 +9,8 @@ module Proxy::RemoteExecution
       extend Forwardable
 
       # The list of methods taken from OpenSSL::SSL::SocketForwarder for the object to act like a socket
-      def_delegators(:@socket, :to_io, :addr, :peeraddr, :setsockopt, :getsockopt, :fcntl, :close, :closed?, :do_not_reverse_lookup=)
+      def_delegators(:@socket, :to_io, :addr, :peeraddr, :setsockopt,
+                     :getsockopt, :fcntl, :close, :closed?, :do_not_reverse_lookup=)
 
       def initialize(socket)
         @socket = socket
@@ -254,7 +255,7 @@ module Proxy::RemoteExecution
         auth_methods = %w(publickey)
         auth_methods.unshift('password') if params["ssh_password"]
 
-        ret = { }
+        ret = {}
         ret[:port] = params["ssh_port"] if params["ssh_port"]
         ret[:keys] = [ key_file ] if key_file
         ret[:password] = params["ssh_password"] if params["ssh_password"]
