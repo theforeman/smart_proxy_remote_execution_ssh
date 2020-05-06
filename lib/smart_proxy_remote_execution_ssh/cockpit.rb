@@ -9,7 +9,8 @@ module Proxy::RemoteExecution
       extend Forwardable
 
       # The list of methods taken from OpenSSL::SSL::SocketForwarder for the object to act like a socket
-      def_delegators(:@socket, :to_io, :addr, :peeraddr, :setsockopt, :getsockopt, :fcntl, :close, :closed?, :do_not_reverse_lookup=)
+      def_delegators(:@socket, :to_io, :addr, :peeraddr, :setsockopt,
+                     :getsockopt, :fcntl, :close, :closed?, :do_not_reverse_lookup=)
 
       def initialize(socket)
         @socket = socket
@@ -57,7 +58,7 @@ module Proxy::RemoteExecution
           # To drain a SSLSocket before we can go back to the event
           # loop, we need to repeatedly call read_nonblock; a single
           # call is not enough.
-          while true
+          loop do
             res += @socket.read_nonblock(n)
           end
         rescue IO::WaitReadable
@@ -79,14 +80,12 @@ module Proxy::RemoteExecution
       end
 
       def send(mesg, flags)
-        begin
-          @socket.write_nonblock(mesg)
-        rescue IO::WaitWritable
-          0
-        rescue IO::WaitReadable
-          IO.select([@socket.to_io])
-          retry
-        end
+        @socket.write_nonblock(mesg)
+      rescue IO::WaitWritable
+        0
+      rescue IO::WaitReadable
+        IO.select([@socket.to_io])
+        retry
       end
     end
 
@@ -123,7 +122,7 @@ module Proxy::RemoteExecution
       def hijack!
         @socket = nil
         if @env['ext.hijack!']
-	  @socket = @env['ext.hijack!'].call
+          @socket = @env['ext.hijack!'].call
         elsif @env['rack.hijack?']
           begin
             @env['rack.hijack'].call
@@ -173,7 +172,7 @@ module Proxy::RemoteExecution
               ssh.listen_to(buf_socket)
 
               ch.on_process do
-                if buf_socket.available > 0
+                if buf_socket.available.positive?
                   ch.send_data(buf_socket.read_available)
                 end
                 if buf_socket.closed?
@@ -251,12 +250,12 @@ module Proxy::RemoteExecution
       end
 
       def ssh_options
-        auth_methods = %w(publickey)
+        auth_methods = %w[publickey]
         auth_methods.unshift('password') if params["ssh_password"]
 
-        ret = { }
+        ret = {}
         ret[:port] = params["ssh_port"] if params["ssh_port"]
-        ret[:keys] = [ key_file ] if key_file
+        ret[:keys] = [key_file] if key_file
         ret[:password] = params["ssh_password"] if params["ssh_password"]
         ret[:passphrase] = params[:ssh_key_passphrase] if params[:ssh_key_passphrase]
         ret[:keys_only] = true
@@ -266,6 +265,5 @@ module Proxy::RemoteExecution
         ret
       end
     end
-
   end
 end
