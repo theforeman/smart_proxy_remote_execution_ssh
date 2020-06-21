@@ -51,7 +51,7 @@ The simplest thing one can do is just to trigger a command:
 ```
 curl http://my-proxy.example.com:9292/dynflow/tasks \
       -X POST -H 'Content-Type: application/json'\
-      -d '{"action_name":  "Proxy::RemoteExecution::Ssh::CommandAction",
+      -d '{"action_name":  "ForemanRemoteExecutionCore::Actions::RunScript",
            "action_input": {"task_id" : "1234'$RANDOM'",
                             "script": "/usr/bin/ls",
                             "hostname": "localhost",
