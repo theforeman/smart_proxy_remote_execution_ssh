@@ -29,6 +29,6 @@ Gem::Specification.new do |gem|
   gem.add_development_dependency('rack-test', '~> 0')
   gem.add_development_dependency('rubocop', '~> 0.82.0')
 
-  gem.add_runtime_dependency('smart_proxy_dynflow', '>= 0.1.0', '< 0.3.0')
+  gem.add_runtime_dependency('smart_proxy_dynflow', '~> 0.1')
   gem.add_runtime_dependency('net-ssh')
 end
