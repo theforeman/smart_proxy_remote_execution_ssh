@@ -34,15 +34,16 @@ module Proxy::RemoteExecution
 
       def validate_ssh_log_level!
         wanted_level = Plugin.settings.ssh_log_level.to_s
-        unless Plugin::SSH_LOG_LEVELS.include? wanted_level
-          raise "Wrong value '#{Plugin.settings.ssh_log_level}' for ssh_log_level, must be one of #{Plugin::SSH_LOG_LEVELS.join(', ')}"
+        levels = Plugin::SSH_LOG_LEVELS
+        unless levels.include? wanted_level
+          raise "Wrong value '#{Plugin.settings.ssh_log_level}' for ssh_log_level, must be one of #{levels.join(', ')}"
         end
 
         current = ::Proxy::SETTINGS.log_level.to_s.downcase
 
         # regular log levels correspond to upcased ssh logger levels
         ssh, regular = [wanted_level, current].map do |wanted|
-          Plugin::SSH_LOG_LEVELS.each_with_index.find { |value, _index| value == wanted }.last
+          levels.each_with_index.find { |value, _index| value == wanted }.last
         end
 
         if ssh < regular

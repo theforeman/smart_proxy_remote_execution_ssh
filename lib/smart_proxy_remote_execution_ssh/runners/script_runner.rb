@@ -1,11 +1,12 @@
 require 'net/ssh'
 require 'fileutils'
 
-# rubocop:disable Lint/SuppressedException
+# Rubocop can't make up its mind what it wants
+# rubocop:disable Lint/SuppressedException, Lint/RedundantCopDisableDirective
 begin
   require 'net/ssh/krb'
 rescue LoadError; end
-# rubocop:enable Lint/SuppressedException:
+# rubocop:enable Lint/SuppressedException, Lint/RedundantCopDisableDirective
 
 module Proxy::RemoteExecution::Ssh::Runners
   class EffectiveUserMethod
@@ -37,11 +38,9 @@ module Proxy::RemoteExecution::Ssh::Runners
       @password_sent = false
     end
 
-    def cli_command_prefix
-    end
+    def cli_command_prefix; end
 
-    def login_prompt
-    end
+    def login_prompt; end
   end
 
   class SudoUserMethod < EffectiveUserMethod
@@ -81,8 +80,7 @@ module Proxy::RemoteExecution::Ssh::Runners
   end
 
   class NoopUserMethod
-    def on_data(_, _)
-    end
+    def on_data(_, _); end
 
     def filter_password?(received_data)
       false
@@ -92,13 +90,12 @@ module Proxy::RemoteExecution::Ssh::Runners
       true
     end
 
-    def cli_command_prefix
-    end
+    def cli_command_prefix; end
 
-    def reset
-    end
+    def reset; end
   end
 
+  # rubocop:disable Metrics/ClassLength
   class ScriptRunner < ForemanTasksCore::Runner::Base
     attr_reader :execution_timeout_interval
 
@@ -134,13 +131,13 @@ module Proxy::RemoteExecution::Ssh::Runners
                       NoopUserMethod.new
                     elsif effective_user_method == 'sudo'
                       SudoUserMethod.new(effective_user, ssh_user,
-                        options.fetch(:secrets, {}).fetch(:effective_user_password, nil))
+                                         options.fetch(:secrets, {}).fetch(:effective_user_password, nil))
                     elsif effective_user_method == 'dzdo'
                       DzdoUserMethod.new(effective_user, ssh_user,
-                        options.fetch(:secrets, {}).fetch(:effective_user_password, nil))
+                                         options.fetch(:secrets, {}).fetch(:effective_user_password, nil))
                     elsif effective_user_method == 'su'
                       SuUserMethod.new(effective_user, ssh_user,
-                        options.fetch(:secrets, {}).fetch(:effective_user_password, nil))
+                                       options.fetch(:secrets, {}).fetch(:effective_user_password, nil))
                     else
                       raise "effective_user_method '#{effective_user_method}' not supported"
                     end
@@ -153,7 +150,7 @@ module Proxy::RemoteExecution::Ssh::Runners
       script = initialization_script
       logger.debug("executing script:\n#{indent_multiline(script)}")
       trigger(script)
-    rescue => e
+    rescue StandardError => e
       logger.error("error while initalizing command #{e.class} #{e.message}:\n #{e.backtrace.join("\n")}")
       publish_exception('Error initializing command', e)
     end
@@ -196,7 +193,7 @@ module Proxy::RemoteExecution::Ssh::Runners
       else
         logger.debug('connection closed')
       end
-    rescue => e
+    rescue StandardError => e
       publish_exception('Unexpected error', e, false)
     end
 
@@ -213,7 +210,7 @@ module Proxy::RemoteExecution::Ssh::Runners
       tries = 0
       begin
         yield
-      rescue => e
+      rescue StandardError => e
         logger.error("Unexpected error: #{e.class} #{e.message}\n #{e.backtrace.join("\n")}")
         tries += 1
         if tries <= MAX_PROCESS_RETRIES
@@ -239,7 +236,7 @@ module Proxy::RemoteExecution::Ssh::Runners
 
     def close
       run_sync("rm -rf \"#{remote_command_dir}\"") if should_cleanup?
-    rescue => e
+    rescue StandardError => e
       publish_exception('Error when removing remote working dir', e, false)
     ensure
       @session.close if @session && !@session.closed?
@@ -455,7 +452,7 @@ module Proxy::RemoteExecution::Ssh::Runners
     end
 
     def available_authentication_methods
-      methods = %w(publickey) # Always use pubkey auth as fallback
+      methods = %w[publickey] # Always use pubkey auth as fallback
       if settings[:kerberos_auth]
         if defined? Net::SSH::Kerberos
           methods << 'gssapi-with-mic'
@@ -468,4 +465,5 @@ module Proxy::RemoteExecution::Ssh::Runners
       methods
     end
   end
+  # rubocop:enable Metrics/ClassLength
 end

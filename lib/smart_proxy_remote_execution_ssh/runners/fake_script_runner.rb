@@ -9,13 +9,13 @@ module Proxy::RemoteExecution::Ssh::Runners
 
       def load_data(path = nil)
         if path.nil?
-          @data = <<-END.gsub(/^\s+\| ?/, '').lines
+          @data = <<-BANNER.gsub(/^\s+\| ?/, '').lines
             | ====== Simulated Remote Execution ======
             |
             | This is an output of a simulated remote
             | execution run. It should run for about
             | 5 seconds and finish successfully.
-          END
+          BANNER
         else
           File.open(File.expand_path(path), 'r') do |f|
             @data = f.readlines.map(&:chomp)
@@ -77,7 +77,7 @@ module Proxy::RemoteExecution::Ssh::Runners
     def exit_code
       fail_chance   = ENV.fetch('REX_SIMULATE_FAIL_CHANCE', 0).to_i
       fail_exitcode = ENV.fetch('REX_SIMULATE_EXIT', 0).to_i
-      if fail_exitcode == 0 || fail_chance < (Random.rand * 100).round
+      if fail_exitcode.zero? || fail_chance < (Random.rand * 100).round
         0
       else
         fail_exitcode

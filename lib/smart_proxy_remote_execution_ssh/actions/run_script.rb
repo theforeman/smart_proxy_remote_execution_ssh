@@ -9,7 +9,7 @@ module Proxy::RemoteExecution::Ssh
           :uuid => execution_plan_id,
         }
         Proxy::RemoteExecution::Ssh::Plugin.runner_class.build(input.merge(additional_options),
-          suspended_action: suspended_action)
+                                                               suspended_action: suspended_action)
       end
 
       def runner_dispatcher

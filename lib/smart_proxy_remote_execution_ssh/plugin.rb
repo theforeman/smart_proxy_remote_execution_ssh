@@ -1,6 +1,6 @@
 module Proxy::RemoteExecution::Ssh
   class Plugin < Proxy::Plugin
-    SSH_LOG_LEVELS = %w(debug info warn error fatal).freeze
+    SSH_LOG_LEVELS = %w[debug info warn error fatal].freeze
 
     http_rackup_path File.expand_path("http_config.ru", File.expand_path("../", __FILE__))
     https_rackup_path File.expand_path("http_config.ru", File.expand_path("../", __FILE__))
@@ -33,7 +33,7 @@ module Proxy::RemoteExecution::Ssh
     end
 
     def self.simulate?
-      @simulate ||= %w(yes true 1).include? ENV.fetch('REX_SIMULATE', '').downcase
+      @simulate ||= %w[yes true 1].include? ENV.fetch('REX_SIMULATE', '').downcase
     end
 
     def self.runner_class

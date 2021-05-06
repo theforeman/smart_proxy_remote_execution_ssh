@@ -2,11 +2,10 @@ require 'base64'
 
 module Proxy::RemoteExecution::Ssh::Runners
   class PollingScriptRunner < ScriptRunner
-
     DEFAULT_REFRESH_INTERVAL = 60
 
     def self.load_script(name)
-      script_dir = File.expand_path('../../async_scripts', __FILE__)
+      script_dir = File.expand_path('../async_scripts', __dir__)
       File.read(File.join(script_dir, name))
     end
 
@@ -54,9 +53,16 @@ module Proxy::RemoteExecution::Ssh::Runners
       err = output = nil
       begin
         _, output, err = run_sync("#{@user_method.cli_command_prefix} #{@retrieval_script}")
-      rescue => e
+      rescue StandardError => e
         @logger.info("Error while connecting to the remote host on refresh: #{e.message}")
       end
+
+      process_retrieved_data(output, err)
+    ensure
+      destroy_session
+    end
+
+    def process_retrieved_data(output, err)
       return if output.nil? || output.empty?
 
       lines = output.lines
@@ -68,8 +74,6 @@ module Proxy::RemoteExecution::Ssh::Runners
         publish_exit_status(exitcode.to_i)
         cleanup
       end
-    ensure
-      destroy_session
     end
 
     def external_event(event)
