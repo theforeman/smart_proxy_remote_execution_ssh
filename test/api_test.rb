@@ -73,7 +73,7 @@ module Proxy::RemoteExecution::Ssh
           host = 'c7s62.lxc,192.168.122.200'
           delete "/known_hosts/#{host}"
           lines = File.readlines(host_file)
-          (lines.count).must_equal KNOWN_HOSTS.lines.count - 1
+          _(lines.count).must_equal KNOWN_HOSTS.lines.count - 1
           assert lines.select { |line| line.include? host }.empty?
         end
       end

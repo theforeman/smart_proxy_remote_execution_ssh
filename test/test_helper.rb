@@ -3,7 +3,7 @@ require 'minitest/autorun'
 ENV['RACK_ENV'] = 'test'
 
 $LOAD_PATH << File.join(File.dirname(__FILE__), '..', '..', 'lib')
-require "mocha/setup"
+require "mocha/minitest"
 require "rack/test"
 require 'smart_proxy_for_testing'
 
