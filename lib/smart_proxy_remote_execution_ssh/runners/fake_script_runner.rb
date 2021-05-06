@@ -1,4 +1,4 @@
-module ForemanRemoteExecutionCore
+module Proxy::RemoteExecution::Ssh::Runners
   class FakeScriptRunner < ForemanTasksCore::Runner::Base
     DEFAULT_REFRESH_INTERVAL = 1
 

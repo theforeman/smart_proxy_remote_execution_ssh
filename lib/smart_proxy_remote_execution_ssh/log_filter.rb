@@ -1,4 +1,4 @@
-module ForemanRemoteExecutionCore
+module Proxy::RemoteExecution::Ssh
   class LogFilter < ::Logger
     def initialize(base_logger)
       @base_logger = base_logger

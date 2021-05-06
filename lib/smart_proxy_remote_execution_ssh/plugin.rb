@@ -1,5 +1,7 @@
 module Proxy::RemoteExecution::Ssh
   class Plugin < Proxy::Plugin
+    SSH_LOG_LEVELS = %w(debug info warn error fatal).freeze
+
     http_rackup_path File.expand_path("http_config.ru", File.expand_path("../", __FILE__))
     https_rackup_path File.expand_path("http_config.ru", File.expand_path("../", __FILE__))
 
@@ -9,7 +11,11 @@ module Proxy::RemoteExecution::Ssh
                      :remote_working_dir      => '/var/tmp',
                      :local_working_dir       => '/var/tmp',
                      :kerberos_auth           => false,
-                     :async_ssh               => false
+                     :async_ssh               => false,
+                     # When set to nil, makes REX use the runner's default interval
+                     # :runner_refresh_interval => nil,
+                     :ssh_log_level           => :fatal,
+                     :cleanup_working_dirs    => true
 
     plugin :ssh, Proxy::RemoteExecution::Ssh::VERSION
     after_activation do
@@ -17,17 +23,27 @@ module Proxy::RemoteExecution::Ssh
       require 'smart_proxy_remote_execution_ssh/version'
       require 'smart_proxy_remote_execution_ssh/cockpit'
       require 'smart_proxy_remote_execution_ssh/api'
-
-      begin
-        require 'smart_proxy_dynflow_core'
-        require 'foreman_remote_execution_core'
-        ForemanRemoteExecutionCore.initialize_settings(Proxy::RemoteExecution::Ssh::Plugin.settings.to_h)
-      rescue LoadError # rubocop:disable Lint/HandleExceptions
-        # Dynflow core is not available in the proxy, will be handled
-        # by standalone Dynflow core
-      end
+      require 'smart_proxy_remote_execution_ssh/actions/run_script'
+      require 'smart_proxy_remote_execution_ssh/dispatcher'
+      require 'smart_proxy_remote_execution_ssh/log_filter'
+      require 'smart_proxy_remote_execution_ssh/runners'
+      require 'smart_proxy_dynflow_core'
 
       Proxy::RemoteExecution::Ssh.validate!
+    end
+
+    def self.simulate?
+      @simulate ||= %w(yes true 1).include? ENV.fetch('REX_SIMULATE', '').downcase
+    end
+
+    def self.runner_class
+      @runner_class ||= if simulate?
+                          Runners::FakeScriptRunner
+                        elsif settings[:async_ssh]
+                          Runners::PollingScriptRunner
+                        else
+                          Runners::ScriptRunner
+                        end
     end
   end
 end

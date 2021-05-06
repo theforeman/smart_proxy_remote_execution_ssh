@@ -7,7 +7,7 @@ begin
 rescue LoadError; end
 # rubocop:enable Lint/SuppressedException:
 
-module ForemanRemoteExecutionCore
+module Proxy::RemoteExecution::Ssh::Runners
   class EffectiveUserMethod
     attr_reader :effective_user, :ssh_user, :effective_user_password, :password_sent
 
@@ -118,10 +118,10 @@ module ForemanRemoteExecutionCore
       @verify_host = options.fetch(:verify_host, nil)
       @execution_timeout_interval = options.fetch(:execution_timeout_interval, nil)
 
-      @client_private_key_file = settings.fetch(:ssh_identity_key_file)
-      @local_working_dir = options.fetch(:local_working_dir, settings.fetch(:local_working_dir))
-      @remote_working_dir = options.fetch(:remote_working_dir, settings.fetch(:remote_working_dir))
-      @cleanup_working_dirs = options.fetch(:cleanup_working_dirs, settings.fetch(:cleanup_working_dirs))
+      @client_private_key_file = settings.ssh_identity_key_file
+      @local_working_dir = options.fetch(:local_working_dir, settings.local_working_dir)
+      @remote_working_dir = options.fetch(:remote_working_dir, settings.remote_working_dir)
+      @cleanup_working_dirs = options.fetch(:cleanup_working_dirs, settings.cleanup_working_dirs)
       @user_method = user_method
     end
 
@@ -170,7 +170,7 @@ module ForemanRemoteExecutionCore
 
     # the script that initiates the execution
     def initialization_script
-      su_method = @user_method.instance_of?(ForemanRemoteExecutionCore::SuUserMethod)
+      su_method = @user_method.instance_of?(SuUserMethod)
       # pipe the output to tee while capturing the exit code in a file
       <<-SCRIPT.gsub(/^\s+\| /, '')
       | sh -c "(#{@user_method.cli_command_prefix}#{su_method ? "'#{@remote_script} < /dev/null '" : "#{@remote_script} < /dev/null"}; echo \\$?>#{@exit_code_path}) | /usr/bin/tee #{@output_path}
@@ -281,12 +281,12 @@ module ForemanRemoteExecutionCore
       ssh_options[:user_known_hosts_file] = prepare_known_hosts if @host_public_key
       ssh_options[:number_of_password_prompts] = 1
       ssh_options[:verbose] = settings[:ssh_log_level]
-      ssh_options[:logger] = ForemanRemoteExecutionCore::LogFilter.new(SmartProxyDynflowCore::Log.instance)
+      ssh_options[:logger] = Proxy::RemoteExecution::Ssh::LogFilter.new(SmartProxyDynflowCore::Log.instance)
       return ssh_options
     end
 
     def settings
-      ForemanRemoteExecutionCore.settings
+      Proxy::RemoteExecution::Ssh::Plugin.settings
     end
 
     # Initiates run of the remote command and yields the data when

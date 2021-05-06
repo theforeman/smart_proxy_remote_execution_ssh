@@ -1,12 +1,12 @@
 require 'base64'
 
-module ForemanRemoteExecutionCore
+module Proxy::RemoteExecution::Ssh::Runners
   class PollingScriptRunner < ScriptRunner
 
     DEFAULT_REFRESH_INTERVAL = 60
 
     def self.load_script(name)
-      script_dir = File.expand_path('../async_scripts', __FILE__)
+      script_dir = File.expand_path('../../async_scripts', __FILE__)
       File.read(File.join(script_dir, name))
     end
 
