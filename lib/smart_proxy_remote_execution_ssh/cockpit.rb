@@ -257,7 +257,7 @@ module Proxy::RemoteExecution
         ret[:port] = params["ssh_port"] if params["ssh_port"]
         ret[:keys] = [key_file] if key_file
         ret[:password] = params["ssh_password"] if params["ssh_password"]
-        ret[:passphrase] = params[:ssh_key_passphrase] if params[:ssh_key_passphrase]
+        ret[:passphrase] = params["ssh_key_passphrase"] if params["ssh_key_passphrase"]
         ret[:keys_only] = true
         ret[:auth_methods] = auth_methods
         ret[:verify_host_key] = true
