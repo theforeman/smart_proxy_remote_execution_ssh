@@ -15,3 +15,6 @@
 # one of :debug, :info, :warn, :error, :fatal
 # must be lower than general log level
 # :ssh_log_level: fatal
+
+# Remove working directories on job completion
+# :cleanup_working_dirs: true
