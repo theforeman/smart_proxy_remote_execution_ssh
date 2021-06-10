@@ -24,7 +24,7 @@ module Proxy::RemoteExecution::Ssh::Runners
       @callback_host = options[:callback_host]
       @task_id = options[:uuid]
       @step_id = options[:step_id]
-      @otp = ForemanTasksCore::OtpManager.generate_otp(@task_id)
+      @otp = Proxy::Dynflow::OtpManager.generate_otp(@task_id)
     end
 
     def prepare_start
@@ -90,7 +90,7 @@ module Proxy::RemoteExecution::Ssh::Runners
 
     def close
       super
-      ForemanTasksCore::OtpManager.drop_otp(@task_id, @otp) if @otp
+      Proxy::Dynflow::OtpManager.drop_otp(@task_id, @otp) if @otp
     end
 
     def upload_control_scripts
@@ -116,7 +116,7 @@ module Proxy::RemoteExecution::Ssh::Runners
 
     # Generates updates based on the callback data from the manual mode
     def load_event_updates(event_data)
-      continuous_output = ForemanTasksCore::ContinuousOutput.new
+      continuous_output = Proxy::Dynflow::ContinuousOutput.new
       if event_data.key?('output')
         lines = Base64.decode64(event_data['output']).sub(/\A(RUNNING|DONE).*\n/, '')
         continuous_output.add_output(lines, 'stdout')

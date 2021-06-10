@@ -1,8 +1,7 @@
-require 'foreman_tasks_core'
-require 'smart_proxy_remote_execution_ssh/version'
 require 'smart_proxy_dynflow'
-require 'smart_proxy_remote_execution_ssh/webrick_ext'
+require 'smart_proxy_remote_execution_ssh/version'
 require 'smart_proxy_remote_execution_ssh/plugin'
+require 'smart_proxy_remote_execution_ssh/webrick_ext'
 
 module Proxy::RemoteExecution
   module Ssh
@@ -53,8 +52,5 @@ module Proxy::RemoteExecution
         Plugin.settings.ssh_log_level = Plugin.settings.ssh_log_level.to_sym
       end
     end
-
-    require 'smart_proxy_dynflow_core/task_launcher_registry'
-    SmartProxyDynflowCore::TaskLauncherRegistry.register('ssh', ForemanTasksCore::TaskLauncher::Batch)
   end
 end
