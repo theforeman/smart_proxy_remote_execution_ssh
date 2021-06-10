@@ -1,8 +1,9 @@
-require 'foreman_tasks_core/shareable_action'
+require 'smart_proxy_dynflow/action/shareable'
+require 'smart_proxy_dynflow/action/runner'
 
 module Proxy::RemoteExecution::Ssh
   module Actions
-    class RunScript < ForemanTasksCore::Runner::Action
+    class RunScript < Proxy::Dynflow::Action::Runner
       def initiate_runner
         additional_options = {
           :step_id => run_step_id,

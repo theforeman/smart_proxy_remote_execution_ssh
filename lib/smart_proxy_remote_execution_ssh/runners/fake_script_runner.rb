@@ -1,5 +1,5 @@
 module Proxy::RemoteExecution::Ssh::Runners
-  class FakeScriptRunner < ForemanTasksCore::Runner::Base
+  class FakeScriptRunner < ::Proxy::Dynflow::Runner::Base
     DEFAULT_REFRESH_INTERVAL = 1
 
     @data = []

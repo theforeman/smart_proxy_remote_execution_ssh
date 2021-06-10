@@ -96,7 +96,7 @@ module Proxy::RemoteExecution::Ssh::Runners
   end
 
   # rubocop:disable Metrics/ClassLength
-  class ScriptRunner < ForemanTasksCore::Runner::Base
+  class ScriptRunner < Proxy::Dynflow::Runner::Base
     attr_reader :execution_timeout_interval
 
     EXPECTED_POWER_ACTION_MESSAGES = ['restart host', 'shutdown host'].freeze
