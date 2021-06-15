@@ -110,7 +110,7 @@ module Proxy::RemoteExecution::Ssh::Runners
 
       @client_private_key_file = settings.ssh_identity_key_file
       @local_working_dir = options.fetch(:local_working_dir, settings.local_working_dir)
-      @remote_working_dir = options.fetch(:remote_working_dir, settings.remote_working_dir)
+      @remote_working_dir = options.fetch(:remote_working_dir, settings.remote_working_dir.shellescape)
       @cleanup_working_dirs = options.fetch(:cleanup_working_dirs, settings.cleanup_working_dirs)
       @first_execution = options.fetch(:first_execution, false)
       @user_method = user_method
@@ -158,15 +158,20 @@ module Proxy::RemoteExecution::Ssh::Runners
       @remote_script = cp_script_to_remote
       @output_path = File.join(File.dirname(@remote_script), 'output')
       @exit_code_path = File.join(File.dirname(@remote_script), 'exit_code')
+      @pid_path = File.join(File.dirname(@remote_script), 'pid')
+      @remote_script_wrapper = upload_data("echo $$ > #{@pid_path}; exec \"$@\";", File.join(File.dirname(@remote_script), 'script-wrapper'), 555)
     end
 
     # the script that initiates the execution
     def initialization_script
       su_method = @user_method.instance_of?(SuUserMethod)
       # pipe the output to tee while capturing the exit code in a file
-      <<-SCRIPT.gsub(/^\s+\| /, '')
-      | sh -c "(#{@user_method.cli_command_prefix}#{su_method ? "'#{@remote_script} < /dev/null '" : "#{@remote_script} < /dev/null"}; echo \\$?>#{@exit_code_path}) | /usr/bin/tee #{@output_path}
-      | exit \\$(cat #{@exit_code_path})"
+      <<~SCRIPT
+        sh <<EOF | /usr/bin/tee #{@output_path}
+        #{@remote_script_wrapper} #{@user_method.cli_command_prefix}#{su_method ? "'#{@remote_script} < /dev/null '" : "#{@remote_script} < /dev/null"}
+        echo \\$?>#{@exit_code_path}
+        EOF
+        exit $(cat #{@exit_code_path})
       SCRIPT
     end
 
@@ -179,7 +184,7 @@ module Proxy::RemoteExecution::Ssh::Runners
 
     def kill
       if @session
-        run_sync("pkill -f #{remote_command_file('script')}")
+        run_sync("pkill -P $(cat #{@pid_path})")
       else
         logger.debug('connection closed')
       end
@@ -208,7 +213,7 @@ module Proxy::RemoteExecution::Ssh::Runners
     end
 
     def close
-      run_sync("rm -rf \"#{remote_command_dir}\"") if should_cleanup?
+      run_sync("rm -rf #{remote_command_dir}") if should_cleanup?
     rescue StandardError => e
       publish_exception('Error when removing remote working dir', e, false)
     ensure
@@ -362,7 +367,7 @@ module Proxy::RemoteExecution::Ssh::Runners
       # We use tee here to pipe stdin coming from ssh to a file at $path, while silencing its output
       # This is used to write to $path with elevated permissions, solutions using cat and output redirection
       # would not work, because the redirection would happen in the non-elevated shell.
-      command = "tee '#{path}' >/dev/null && chmod '#{permissions}' '#{path}'"
+      command = "tee #{path} >/dev/null && chmod #{permissions} #{path}"
 
       @logger.debug("Sending data to #{path} on remote host:\n#{data}")
       status, _out, err = run_sync(command, data)

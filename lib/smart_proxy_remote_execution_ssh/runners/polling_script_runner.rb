@@ -36,12 +36,11 @@ module Proxy::RemoteExecution::Ssh::Runners
     def initialization_script
       close_stdin = '</dev/null'
       close_fds = close_stdin + ' >/dev/null 2>/dev/null'
-      main_script = "(#{@remote_script} #{close_stdin} 2>&1; echo $?>#{@base_dir}/init_exit_code) >#{@base_dir}/output"
+      main_script = "(#{@remote_script_wrapper} #{@remote_script} #{close_stdin} 2>&1; echo $?>#{@base_dir}/init_exit_code) >#{@base_dir}/output"
       control_script_finish = "#{@control_script_path} init-script-finish"
       <<-SCRIPT.gsub(/^ +\| /, '')
       | export CONTROL_SCRIPT="#{@control_script_path}"
       | #{@user_method.cli_command_prefix} sh -c '#{main_script}; #{control_script_finish}' #{close_fds} &
-      | echo $! > '#{@base_dir}/pid'
       SCRIPT
     end
 
@@ -60,6 +59,12 @@ module Proxy::RemoteExecution::Ssh::Runners
       process_retrieved_data(output, err)
     ensure
       destroy_session
+    end
+
+    def kill
+      run_sync("pkill -P $(cat #{@pid_path})")
+    rescue StandardError => e
+      publish_exception('Unexpected error', e, false)
     end
 
     def process_retrieved_data(output, err)
@@ -126,7 +131,7 @@ module Proxy::RemoteExecution::Ssh::Runners
     end
 
     def cleanup
-      run_sync("rm -rf \"#{remote_command_dir}\"") if @cleanup_working_dirs
+      run_sync("rm -rf #{remote_command_dir}") if @cleanup_working_dirs
     end
 
     def destroy_session
