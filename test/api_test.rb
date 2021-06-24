@@ -27,7 +27,7 @@ module Proxy::RemoteExecution::Ssh
 
     def setup
       super
-      Proxy::RemoteExecution::Ssh::Plugin.load_test_settings(ssh_identity_key_file: FAKE_PRIVATE_KEY_FILE)
+      Proxy::RemoteExecution::Ssh::Plugin.load_test_settings(ssh_identity_key_file: FAKE_PRIVATE_KEY_FILE, ssh_identity_public_key_file: FAKE_PUBLIC_KEY_FILE)
     end
 
     let(:app) { Proxy::RemoteExecution::Ssh::Api.new }
@@ -35,6 +35,7 @@ module Proxy::RemoteExecution::Ssh
     describe '/pubkey' do
       it 'returns the content of the public key' do
         get '/pubkey'
+        _(last_response.status).must_equal 200, last_response.body
         _(last_response.body).must_equal '===public-key==='
       end
     end

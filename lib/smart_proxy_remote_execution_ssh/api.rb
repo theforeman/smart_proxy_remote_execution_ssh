@@ -10,7 +10,7 @@ module Proxy::RemoteExecution
       include Proxy::Dynflow::Helpers
 
       get "/pubkey" do
-        File.read(Ssh.public_key_file)
+        File.read(Proxy::RemoteExecution::Plugin.settings.ssh_identity_public_key_file)
       rescue Errno::ENOENT
         halt 404
       end

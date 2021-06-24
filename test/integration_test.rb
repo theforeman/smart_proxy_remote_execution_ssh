@@ -14,9 +14,11 @@ class SmartProxyRemoteExecutionSshApiFeaturesTest < MiniTest::Test
 
   def test_features_for_default_mode_without_dynflow
     Proxy::LegacyModuleLoader.any_instance.expects(:load_configuration_file).with('dynflow.yml').returns(enabled: false)
-    Proxy::LegacyModuleLoader.any_instance.expects(:load_configuration_file).with('remote_execution_ssh.yml').returns(
+    Proxy::DefaultModuleLoader.any_instance.expects(:load_configuration_file).with('remote_execution_ssh.yml').returns(
       enabled: true,
       ssh_identity_key_file: FAKE_PRIVATE_KEY_FILE,
+      mqtt_broker: 'broker.example.com',
+      mqtt_port: 1883,
     )
 
     get '/features'
@@ -30,7 +32,7 @@ class SmartProxyRemoteExecutionSshApiFeaturesTest < MiniTest::Test
 
   def test_features_for_default_mode_with_dynflow
     Proxy::LegacyModuleLoader.any_instance.expects(:load_configuration_file).with('dynflow.yml').returns(enabled: true)
-    Proxy::LegacyModuleLoader.any_instance.expects(:load_configuration_file).with('remote_execution_ssh.yml').returns(
+    Proxy::DefaultModuleLoader.any_instance.expects(:load_configuration_file).with('remote_execution_ssh.yml').returns(
       enabled: true,
       ssh_identity_key_file: FAKE_PRIVATE_KEY_FILE,
     )
@@ -52,7 +54,7 @@ class SmartProxyRemoteExecutionSshApiFeaturesTest < MiniTest::Test
 
   def test_features_for_pull_mqtt_mode_without_required_options
     Proxy::LegacyModuleLoader.any_instance.expects(:load_configuration_file).with('dynflow.yml').returns(enabled: true)
-    Proxy::LegacyModuleLoader.any_instance.expects(:load_configuration_file).with('remote_execution_ssh.yml').returns(
+    Proxy::DefaultModuleLoader.any_instance.expects(:load_configuration_file).with('remote_execution_ssh.yml').returns(
       enabled: true,
       ssh_identity_key_file: FAKE_PRIVATE_KEY_FILE,
       mode: 'pull-mqtt',
@@ -68,12 +70,14 @@ class SmartProxyRemoteExecutionSshApiFeaturesTest < MiniTest::Test
 
     mod = response['ssh']
     refute_nil(mod)
-    assert_equal('running', mod['state'], Proxy::LogBuffer::Buffer.instance.info[:failed_modules][:ssh])
+    assert_equal('failed', mod['state'], Proxy::LogBuffer::Buffer.instance.info[:failed_modules][:ssh])
+    assert_equal("Disabling all modules in the group ['ssh'] due to a failure in one of them: Parameter 'mqtt_broker' is expected to have a non-empty value",
+                 Proxy::LogBuffer::Buffer.instance.info[:failed_modules][:ssh])
   end
 
   def test_features_with_dynflow_and_required_options
     Proxy::LegacyModuleLoader.any_instance.expects(:load_configuration_file).with('dynflow.yml').returns(enabled: true)
-    Proxy::LegacyModuleLoader.any_instance.expects(:load_configuration_file).with('remote_execution_ssh.yml').returns(
+    Proxy::DefaultModuleLoader.any_instance.expects(:load_configuration_file).with('remote_execution_ssh.yml').returns(
       enabled: true,
       ssh_identity_key_file: FAKE_PRIVATE_KEY_FILE,
       mode: 'pull-mqtt',

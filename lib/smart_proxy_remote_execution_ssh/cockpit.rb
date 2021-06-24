@@ -242,7 +242,7 @@ module Proxy::RemoteExecution
       end
 
       def key_file
-        @key_file ||= Proxy::RemoteExecution::Ssh.private_key_file
+        @key_file ||= Proxy::RemoteExecution::Plugin.settings.ssh_identity_key_file
       end
 
       def buf_socket
