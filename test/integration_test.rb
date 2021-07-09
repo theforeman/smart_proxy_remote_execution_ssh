@@ -27,7 +27,9 @@ class SmartProxyRemoteExecutionSshApiFeaturesTest < MiniTest::Test
 
     mod = response['ssh']
     refute_nil(mod)
-    assert_equal('running', mod['state'], Proxy::LogBuffer::Buffer.instance.info[:failed_modules][:ssh])
+    assert_equal('failed', mod['state'], Proxy::LogBuffer::Buffer.instance.info[:failed_modules][:ssh])
+    assert_equal("Disabling all modules in the group ['ssh'] due to a failure in one of them: 'dynflow' required by 'ssh' could not be found.",
+                 Proxy::LogBuffer::Buffer.instance.info[:failed_modules][:ssh])
   end
 
   def test_features_for_default_mode_with_dynflow

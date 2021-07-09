@@ -60,6 +60,8 @@ module Proxy::RemoteExecution::Ssh
 
     plugin :ssh, Proxy::RemoteExecution::Ssh::VERSION
 
+    requires :dynflow, '~> 0.5'
+
     load_classes do
       require 'smart_proxy_dynflow'
       require 'smart_proxy_dynflow/task_launcher'
