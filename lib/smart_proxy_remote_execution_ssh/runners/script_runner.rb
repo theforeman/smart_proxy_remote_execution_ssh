@@ -102,6 +102,8 @@ module Proxy::RemoteExecution::Ssh::Runners
     EXPECTED_POWER_ACTION_MESSAGES = ['restart host', 'shutdown host'].freeze
     DEFAULT_REFRESH_INTERVAL = 1
     MAX_PROCESS_RETRIES = 4
+    VERIFY_HOST_KEY = Gem::Version.create(Net::SSH::Version::STRING) < Gem::Version.create('5.0.0') ||
+                      :accept_new_or_local_tunnel
 
     def initialize(options, user_method, suspended_action: nil)
       super suspended_action: suspended_action
@@ -273,7 +275,7 @@ module Proxy::RemoteExecution::Ssh::Runners
       ssh_options[:keys_only] = true
       # if the host public key is contained in the known_hosts_file,
       # verify it, otherwise, if missing, import it and continue
-      ssh_options[:paranoid] = true
+      ssh_options[:verify_host_key] = VERIFY_HOST_KEY
       ssh_options[:auth_methods] = available_authentication_methods
       ssh_options[:user_known_hosts_file] = prepare_known_hosts if @host_public_key
       ssh_options[:number_of_password_prompts] = 1
