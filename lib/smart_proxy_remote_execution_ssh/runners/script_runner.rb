@@ -150,7 +150,7 @@ module Proxy::RemoteExecution::Ssh::Runners
       script = initialization_script
       logger.debug("executing script:\n#{indent_multiline(script)}")
       trigger(script)
-    rescue StandardError => e
+    rescue StandardError, NotImplementedError => e
       logger.error("error while initalizing command #{e.class} #{e.message}:\n #{e.backtrace.join("\n")}")
       publish_exception('Error initializing command', e)
     end
@@ -261,8 +261,6 @@ module Proxy::RemoteExecution::Ssh::Runners
       @session ||= begin
                      @logger.debug("opening session to #{@ssh_user}@#{@host}")
                      Net::SSH.start(@host, @ssh_user, ssh_options)
-                   rescue Exception => e
-                     logger.error("#{e.class}: #{e.message}")
                    end
     end
 
