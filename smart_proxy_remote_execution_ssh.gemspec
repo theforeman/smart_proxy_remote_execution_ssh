@@ -33,6 +33,5 @@ Gem::Specification.new do |gem|
   gem.add_runtime_dependency('ed25519')
   gem.add_runtime_dependency('net-ssh')
   gem.add_runtime_dependency('rbnacl', '>= 3.2', '< 5.0')
-  gem.add_runtime_dependency('rbnacl-libsodium')
   gem.add_runtime_dependency('smart_proxy_dynflow', '~> 0.5')
 end
