@@ -1,5 +1,6 @@
 require 'net/ssh'
 require 'fileutils'
+require 'pty'
 
 # Rubocop can't make up its mind what it wants
 # rubocop:disable Lint/SuppressedException, Lint/RedundantCopDisableDirective
@@ -333,32 +334,28 @@ module Proxy::RemoteExecution::Ssh::Runners
       stdout = ''
       stderr = ''
       exit_status = nil
-      started = false
 
-      channel = session.open_channel do |ch|
-        ch.on_data do |c, data|
-          stdout.concat(data)
-        end
-        ch.on_extended_data { |_, _, data| stderr.concat(data) }
-        ch.on_request('exit-status') { |_, data| exit_status = data.read_long }
-        # Send data to stdin if we have some
-        ch.send_data(stdin) unless stdin.nil?
-        # on signal: sending the signal value (such as 'TERM')
-        ch.on_request('exit-signal') do |_, data|
-          exit_status = data.read_string
-          ch.close
-          ch.wait
-        end
-        ch.exec command do |_, success|
-          raise 'could not execute command' unless success
+      master, slave = PTY.open
+      read, write = IO.pipe
+      pid = spawn('/usr/bin/ssh', @ssh_user + '@' + @host, command, :in => read, :out => slave)
+      read.close
+      slave.close
 
-          started = true
+      unless stdin.nil?
+        write.puts(stdin)
+        write.close
+        loop do
+          ret = begin
+                  master.gets
+                rescue Errno::EIO
+                  nil
+                end
+          break if ret.nil?
+          stdout += ret
         end
       end
-      session.process(0) { !started }
-      # Closing the channel without sending any data gives us SIGPIPE
-      channel.close unless stdin.nil?
-      channel.wait
+
+      exit_status = Process.wait2(pid)[1].exitstatus
       return exit_status, stdout, stderr
     end
 
