@@ -335,24 +335,32 @@ module Proxy::RemoteExecution::Ssh::Runners
       stderr = ''
       exit_status = nil
 
+      options = []
+      options << "-o User=#{@ssh_user}"
+      options << "-o Port=#{ssh_options[:port]}" if ssh_options[:port]
+      options << "-o IdentityFile=#{ssh_options[:keys][0]}" if ssh_options[:keys]
+      options << "-o IdentitiesOnly=yes"
+      options << "-o StrictHostKeyChecking=accept-new"
+      options << "-o PreferredAuthentications=#{ssh_options[:auth_methods].join(',')}"
+      options << "-o UserKnownHostsFile=#{ssh_options[:user_known_hosts_file]}" if ssh_options[:user_known_hosts_file]
+      options << "-o NumberOfPasswordPrompts=#{ssh_options[:number_of_password_prompts]}"
+      options << "-o LogLevel=#{ssh_options[:verbose]}"
+
       master, slave = PTY.open
       read, write = IO.pipe
-      pid = spawn('/usr/bin/ssh', @ssh_user + '@' + @host, command, :in => read, :out => slave)
+      pid = spawn({"SSHPASS" => ssh_options[:password]}, "/usr/bin/sshpass", "-e", "/usr/bin/ssh", "#{@host}", *options, command, :in => read, :out => slave)
       read.close
       slave.close
 
-      unless stdin.nil?
-        write.puts(stdin)
-        write.close
-        loop do
-          ret = begin
-                  master.gets
-                rescue Errno::EIO
-                  nil
-                end
-          break if ret.nil?
-          stdout += ret
-        end
+      write.puts(stdin) unless stdin.nil?
+      write.close
+
+      loop do
+        stdout += begin
+                    master.gets
+                  rescue Errno::EIO
+                    break
+                  end
       end
 
       exit_status = Process.wait2(pid)[1].exitstatus
