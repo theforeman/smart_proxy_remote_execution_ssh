@@ -24,6 +24,7 @@ module Proxy::RemoteExecution::Ssh
       require 'smart_proxy_remote_execution_ssh/cockpit'
       require 'smart_proxy_remote_execution_ssh/api'
       require 'smart_proxy_remote_execution_ssh/actions/run_script'
+      require 'smart_proxy_remote_execution_ssh/actions/pull_script'
       require 'smart_proxy_remote_execution_ssh/dispatcher'
       require 'smart_proxy_remote_execution_ssh/log_filter'
       require 'smart_proxy_remote_execution_ssh/runners'

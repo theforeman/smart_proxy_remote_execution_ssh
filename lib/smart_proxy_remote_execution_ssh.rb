@@ -51,6 +51,10 @@ module Proxy::RemoteExecution
 
         Plugin.settings.ssh_log_level = Plugin.settings.ssh_log_level.to_sym
       end
+
+      def job_storage
+        @job_storage ||= Proxy::MemoryStore.new
+      end
     end
   end
 end

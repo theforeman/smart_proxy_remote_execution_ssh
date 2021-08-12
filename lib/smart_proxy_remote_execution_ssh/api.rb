@@ -1,5 +1,6 @@
 require 'net/ssh'
 require 'base64'
+require 'smart_proxy_dynflow/runner'
 
 module Proxy::RemoteExecution
   module Ssh
@@ -36,6 +37,43 @@ module Proxy::RemoteExecution
             File.open(host_file, 'w') { |f| f.write lines.join }
           end
         204
+      end
+
+      # Payload is a hash where
+      # exit_code: Integer | NilClass
+      # output: String
+      post '/job/:task_id/:step_id/update' do |task_id, step_id|
+        do_authorize_with_ssl_client
+
+        path = job_path(https_cert_cn, task_id, nil, nil).first
+        if Proxy::RemoteExecution::Ssh.job_storage[path].nil?
+          status 404
+          return ''
+        end
+
+        data = MultiJson.load(request.body.read)
+        world.event(task_id, step_id, ::Proxy::Dynflow::Runner::ExternalEvent.new(data))
+      end
+
+      get "/job/store/:task_id/:step_id/:file" do |task_id, step_id, file|
+        do_authorize_with_ssl_client
+
+        path = job_path(https_cert_cn, task_id, step_id.to_i, file)
+        content = Proxy::RemoteExecution::Ssh.job_storage[*path]
+        if content
+          world.event(task_id, step_id.to_i, Proxy::RemoteExecution::Ssh::PullScript::JobDelivered)
+          return content
+        end
+
+        status 404
+        ''
+      end
+
+      def job_path(hostname, task_id, step_id, file)
+        ["#{hostname}-#{task_id}",
+         step_id,
+         file,
+        ]
       end
     end
   end

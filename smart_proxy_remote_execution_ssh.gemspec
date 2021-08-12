@@ -31,4 +31,5 @@ Gem::Specification.new do |gem|
 
   gem.add_runtime_dependency('smart_proxy_dynflow', '~> 0.5')
   gem.add_runtime_dependency('net-ssh', '>= 4.2.0')
+  gem.add_runtime_dependency('mqtt')
 end

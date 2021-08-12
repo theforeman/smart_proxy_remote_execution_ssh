@@ -1,5 +1,6 @@
 require 'test_helper'
 require 'tempfile'
+require 'smart_proxy_remote_execution_ssh/actions/pull_script'
 
 KNOWN_HOSTS = <<EOF
 c7s62.lxc,192.168.122.200 ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBFAMEcFeBHeY8AD7xw2weF6vIE0BZXBk0oOm7sM+iJ4ld7BvQDf0mF6EeyyjzDmMUTyR2q9q0OdYiTbyEiKHQF4=
@@ -76,6 +77,72 @@ module Proxy::RemoteExecution::Ssh
           _(lines.count).must_equal KNOWN_HOSTS.lines.count - 1
           assert lines.select { |line| line.include? host }.empty?
         end
+      end
+    end
+
+    describe '/job/update' do
+      let(:hostname) { 'myhost.example.com' }
+
+      before { Proxy::RemoteExecution::Ssh.job_storage["#{hostname}-12345", 1, 'message'] = 'hello' }
+      after  { Proxy::RemoteExecution::Ssh.job_storage.delete("#{hostname}-12345") }
+
+      it 'returns 403 if HTTPS is used and no cert is provided' do
+        post '/job/12345/1/update', {}, 'HTTPS' => 1
+        _(last_response.status).must_equal 403
+      end
+
+      it 'returns 404 if job does not exist' do
+        Proxy::RemoteExecution::Ssh::Api.any_instance.expects(:https_cert_cn).returns(hostname)
+        post '/job/12346/1/update'
+        _(last_response.status).must_equal 404
+      end
+
+      it 'dispatches an event' do
+        Proxy::RemoteExecution::Ssh::Api.any_instance.expects(:https_cert_cn).returns(hostname)
+        fake_world = mock
+        fake_world.expects(:event) do |task_id, step_id, _payload|
+          task_id == '12345' && step_id == 1
+        end
+        Proxy::RemoteExecution::Ssh::Api.any_instance.expects(:world).returns(fake_world)
+
+        post '/job/12345/1/update', '{}'
+        _(last_response.status).must_equal 200
+      end
+    end
+
+    describe '/job/store' do
+      let(:hostname) { 'myhost.example.com' }
+
+      before { Proxy::RemoteExecution::Ssh.job_storage["#{hostname}-12345", 1, 'message'] = 'hello' }
+      after  { Proxy::RemoteExecution::Ssh.job_storage.delete("#{hostname}-12345") }
+
+      it 'returns 403 if HTTPS is used and no cert is provided' do
+        get '/job/store/12345/1/message', {}, 'HTTPS' => 1
+        _(last_response.status).must_equal 403
+      end
+
+      it 'returns content if there is some and notifies the action' do
+        Proxy::RemoteExecution::Ssh::Api.any_instance.expects(:https_cert_cn).returns(hostname)
+        fake_world = mock
+        fake_world.expects(:event).with('12345', 1, Proxy::RemoteExecution::Ssh::PullScript::JobDelivered)
+        Proxy::RemoteExecution::Ssh::Api.any_instance.expects(:world).returns(fake_world)
+
+        get '/job/store/12345/1/message'
+        _(last_response.status).must_equal 200
+        _(last_response.body).must_equal 'hello'
+      end
+
+      it 'returns 404 if there is no content' do
+        Proxy::RemoteExecution::Ssh::Api.any_instance.expects(:https_cert_cn).times(3).returns(hostname)
+
+        get '/job/store/12345/1/something.tar.gz'
+        _(last_response.status).must_equal 404
+
+        get '/job/store/12345/2/something.tar.gz'
+        _(last_response.status).must_equal 404
+
+        get '/job/store/12346/2/something.tar.gz'
+        _(last_response.status).must_equal 404
       end
     end
   end
