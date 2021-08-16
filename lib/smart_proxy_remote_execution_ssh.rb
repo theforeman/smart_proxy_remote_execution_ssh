@@ -20,7 +20,9 @@ module Proxy::RemoteExecution
           raise "Ssh public key file #{public_key_file} doesn't exist"
         end
 
+        validate_mode!
         validate_ssh_log_level!
+        validate_mqtt_settings!
       end
 
       def private_key_file
@@ -29,6 +31,21 @@ module Proxy::RemoteExecution
 
       def public_key_file
         File.expand_path("#{private_key_file}.pub")
+      end
+
+      def validate_mode!
+        Plugin.settings.mode = Plugin.settings.mode.to_sym
+
+        unless Plugin::MODES.include? Plugin.settings.mode
+          raise "Mode has to be one of #{Plugin::MODES.join(', ')}, given #{Plugin.settings.mode}"
+        end
+      end
+
+      def validate_mqtt_settings!
+        return unless Plugin.settings.mode == :'pull-mqtt'
+
+        raise 'mqtt_broker has to be set when pull-mqtt mode is used' if Plugin.settings.mqtt_broker.nil?
+        raise 'mqtt_port has to be set when pull-mqtt mode is used' if Plugin.settings.mqtt_port.nil?
       end
 
       def validate_ssh_log_level!

@@ -4,7 +4,9 @@
 :local_working_dir: '/var/tmp'
 :remote_working_dir: '/var/tmp'
 # :kerberos_auth: false
-# :async_ssh: false
+
+# Mode of operation, one of ssh, ssh-async, pull, pull-mqtt
+:mode: ssh
 
 # Defines how often (in seconds) should the runner check
 # for new data leave empty to use the runner's default
@@ -18,3 +20,7 @@
 
 # Remove working directories on job completion
 # :cleanup_working_dirs: true
+
+# MQTT configuration, need to be set if mode is set to pull-mqtt
+# :mqtt_broker: localhost
+# :mqtt_port: 1883

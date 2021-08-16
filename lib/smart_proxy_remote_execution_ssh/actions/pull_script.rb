@@ -1,7 +1,7 @@
 require 'mqtt'
 require 'json'
 
-module Proxy::RemoteExecution::Ssh
+module Proxy::RemoteExecution::Ssh::Actions
   class PullScript < Proxy::Dynflow::Action::Runner
     JobDelivered = Class.new
 
@@ -22,14 +22,14 @@ module Proxy::RemoteExecution::Ssh
     end
 
     def init_run
-      Proxy::RemoteExecution::Ssh::Plugin.job_storage["#{input[:hostname]}-#{execution_plan_id}", run_step_id, 'script.sh'] = input[:script]
+      job_storage["#{input[:hostname]}-#{execution_plan_id}", run_step_id, 'script.sh'] = input[:script]
       output[:state] = :ready_for_pickup
       mqtt_start if input[:with_mqtt]
       suspend
     end
 
     def cleanup(_plan = nil)
-      Proxy::RemoteExecution::Ssh::Plugin.job_storage.delete("#{input[:hostname]}-#{execution_plan_id}")
+      job_storage.delete("#{input[:hostname]}-#{execution_plan_id}")
     end
 
     def process_external_event(event)
@@ -68,7 +68,7 @@ module Proxy::RemoteExecution::Ssh
         sent: DateTime.now.iso8601,
         directive: 'foreman',
         metadata: {
-          'return_url': "#{input[:proxy_url]}/job/#{execution_plan_id}/#{run_step_id}/update"
+          'return_url': "#{input[:proxy_url]}/job/#{execution_plan_id}/#{run_step_id}/update",
         },
         content: "#{input[:proxy_url]}/job/store/#{execution_plan_id}/#{run_step_id}/script.sh",
       }
@@ -77,11 +77,17 @@ module Proxy::RemoteExecution::Ssh
     end
 
     def mqtt_notify(payload)
-      broker = 'localhost' # TODO
-      broker_port = 1883 # TODO
-      MQTT::Client.connect(broker, broker_port) do |c|
+      MQTT::Client.connect(settings.mqtt_broker, settings.mqtt_port) do |c|
         c.publish("yggdrasil/#{input[:hostname]}/data/in", JSON.dump(payload), false, 1)
       end
+    end
+
+    def settings
+      Proxy::Plugin::RemoteExecution::Ssh::Plugin.settings
+    end
+
+    def job_storage
+      Proxy::RemoteExecution::Ssh.job_storage
     end
   end
 end

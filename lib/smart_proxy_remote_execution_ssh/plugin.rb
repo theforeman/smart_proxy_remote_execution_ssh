@@ -1,6 +1,7 @@
 module Proxy::RemoteExecution::Ssh
   class Plugin < Proxy::Plugin
     SSH_LOG_LEVELS = %w[debug info warn error fatal].freeze
+    MODES = %i[ssh async-ssh pull pull-mqtt]
 
     http_rackup_path File.expand_path("http_config.ru", File.expand_path("../", __FILE__))
     https_rackup_path File.expand_path("http_config.ru", File.expand_path("../", __FILE__))
@@ -11,11 +12,13 @@ module Proxy::RemoteExecution::Ssh
                      :remote_working_dir      => '/var/tmp',
                      :local_working_dir       => '/var/tmp',
                      :kerberos_auth           => false,
-                     :async_ssh               => false,
                      # When set to nil, makes REX use the runner's default interval
                      # :runner_refresh_interval => nil,
                      :ssh_log_level           => :fatal,
-                     :cleanup_working_dirs    => true
+                     :cleanup_working_dirs    => true,
+                     # :mqtt_broker             => nil,
+                     # :mqtt_port               => nil,
+                     :mode                    => :ssh
 
     plugin :ssh, Proxy::RemoteExecution::Ssh::VERSION
     after_activation do
@@ -23,14 +26,18 @@ module Proxy::RemoteExecution::Ssh
       require 'smart_proxy_remote_execution_ssh/version'
       require 'smart_proxy_remote_execution_ssh/cockpit'
       require 'smart_proxy_remote_execution_ssh/api'
-      require 'smart_proxy_remote_execution_ssh/actions/run_script'
-      require 'smart_proxy_remote_execution_ssh/actions/pull_script'
+      require 'smart_proxy_remote_execution_ssh/actions'
       require 'smart_proxy_remote_execution_ssh/dispatcher'
       require 'smart_proxy_remote_execution_ssh/log_filter'
       require 'smart_proxy_remote_execution_ssh/runners'
       require 'smart_proxy_remote_execution_ssh/utils'
 
       Proxy::RemoteExecution::Ssh.validate!
+
+      # TODO: Move into more native methods when available
+      if settings.async_ssh
+        logger.warn('Option async_ssh is deprecated, use ssh-async mode instead.')
+      end
 
       Proxy::Dynflow::TaskLauncherRegistry.register('ssh', Proxy::Dynflow::TaskLauncher::Batch)
     end
@@ -42,7 +49,7 @@ module Proxy::RemoteExecution::Ssh
     def self.runner_class
       @runner_class ||= if simulate?
                           Runners::FakeScriptRunner
-                        elsif settings[:async_ssh]
+                        elsif settings.mode == :'ssh-async'
                           Runners::PollingScriptRunner
                         else
                           Runners::ScriptRunner

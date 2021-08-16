@@ -3,7 +3,20 @@ require 'smart_proxy_dynflow/action/runner'
 
 module Proxy::RemoteExecution::Ssh
   module Actions
-    class RunScript < Proxy::Dynflow::Action::Runner
+    class RunScript < ::Dynflow::Action
+      def plan(*args)
+        mode = Proxy::RemoteExecution::Ssh::Plugin.settings.mode
+        case mode
+        when :ssh, :'ssh-async'
+          plan_action(ScriptRunner, *args)
+        when :pull, :'pull-mqtt'
+          plan_action(PullScript, *args,
+                      mqtt: mode == :'pull-mqtt')
+        end
+      end
+    end
+
+    class ScriptRunner < Proxy::Dynflow::Action::Runner
       def initiate_runner
         additional_options = {
           :step_id => run_step_id,
