@@ -25,6 +25,11 @@ module Proxy::RemoteExecution::Ssh
   class ApiTest < MiniTest::Spec
     include Rack::Test::Methods
 
+    def setup
+      super
+      Proxy::RemoteExecution::Ssh::Plugin.load_test_settings(ssh_identity_key_file: FAKE_PRIVATE_KEY_FILE)
+    end
+
     let(:app) { Proxy::RemoteExecution::Ssh::Api.new }
 
     describe '/pubkey' do

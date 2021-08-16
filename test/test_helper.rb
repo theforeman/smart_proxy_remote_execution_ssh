@@ -21,7 +21,6 @@ logdir = File.join(File.dirname(__FILE__), '..', 'logs')
 FileUtils.mkdir_p(logdir) unless File.exist?(logdir)
 
 def prepare_fake_keys
-  Proxy::RemoteExecution::Ssh::Plugin.load_test_settings(ssh_identity_key_file: FAKE_PRIVATE_KEY_FILE)
   FileUtils.mkdir_p(DATA_DIR) unless File.exist?(DATA_DIR)
   File.write(FAKE_PRIVATE_KEY_FILE, '===private-key===')
   File.write(FAKE_PUBLIC_KEY_FILE, '===public-key===')
