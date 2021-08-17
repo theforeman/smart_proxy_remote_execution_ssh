@@ -45,7 +45,7 @@ module Proxy::RemoteExecution
       post '/jobs/:job_uuid/update' do |job_uuid|
         do_authorize_with_ssl_client
 
-        job_record = Proxy::RemoteExecution::Ssh.job_storage.where(uuid: job_uuid, hostname: https_cert_cn).first
+        job_record = Proxy::RemoteExecution::Ssh.job_storage.find_job(https_cert_cn, job_uuid)
         if job_record.nil?
           status 404
           return ''
@@ -60,17 +60,13 @@ module Proxy::RemoteExecution
       get '/jobs' do
         do_authorize_with_ssl_client
 
-        uuids = Proxy::RemoteExecution::Ssh.job_storage.order(:timestamp)
-                                                       .where(hostname: https_cert_cn)
-                                                       .select_map(:uuid)
-        MultiJson.dump(uuids)
+        MultiJson.dump(Proxy::RemoteExecution::Ssh.job_storage.job_uuids_for_host(https_cert_cn))
       end
 
       get "/jobs/:job_uuid" do |job_uuid|
         do_authorize_with_ssl_client
 
-        job_record = Proxy::RemoteExecution::Ssh.job_storage.where(uuid: job_uuid, hostname: https_cert_cn).first
-
+        job_record = Proxy::RemoteExecution::Ssh.job_storage.find_job(https_cert_cn, job_uuid)
         if job_record.nil?
           status 404
           return ''

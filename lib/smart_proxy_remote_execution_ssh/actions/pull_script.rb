@@ -10,7 +10,6 @@ module Proxy::RemoteExecution::Ssh::Actions
     def plan(action_input, mqtt: false)
       super(action_input)
       input[:with_mqtt] = mqtt
-      input[:job_uuid] = SecureRandom.uuid
     end
 
     def run(event = nil)
@@ -23,20 +22,14 @@ module Proxy::RemoteExecution::Ssh::Actions
     end
 
     def init_run
-      job_storage.insert(timestamp: Time.now.utc,
-                         uuid: input[:job_uuid],
-                         hostname: input[:hostname],
-                         execution_plan_uuid: execution_plan_id,
-                         run_step_id: run_step_id,
-                         job: input[:script])
-      # job_storage["#{input[:hostname]}-#{execution_plan_id}", run_step_id, 'script.sh'] = input[:script]
+      input[:job_uuid] = job_storage.store_job(input[:hostname], execution_plan_id, run_step_id, input[:script])
       output[:state] = :ready_for_pickup
       mqtt_start if input[:with_mqtt]
       suspend
     end
 
     def cleanup(_plan = nil)
-      job_storage.where(execution_plan_uuid: execution_plan_id, run_step_id: run_step_id).delete
+      job_storage.drop_job(execution_plan_id, run_step_id)
     end
 
     def process_external_event(event)

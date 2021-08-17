@@ -1,6 +1,7 @@
 require 'test_helper'
 require 'tempfile'
 require 'smart_proxy_remote_execution_ssh/actions/pull_script'
+require 'smart_proxy_remote_execution_ssh/job_storage'
 
 KNOWN_HOSTS = <<EOF
 c7s62.lxc,192.168.122.200 ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBFAMEcFeBHeY8AD7xw2weF6vIE0BZXBk0oOm7sM+iJ4ld7BvQDf0mF6EeyyjzDmMUTyR2q9q0OdYiTbyEiKHQF4=
@@ -88,18 +89,15 @@ module Proxy::RemoteExecution::Ssh
       let(:content) { 'content' }
 
       before do
+        store = Proxy::RemoteExecution::Ssh::JobStorage.new
+        Proxy::RemoteExecution::Ssh.stubs(:job_storage).returns(store)
         Proxy::RemoteExecution::Ssh
           .job_storage
-          .insert(timestamp: Time.now.utc,
-                  uuid: uuid,
-                  hostname: hostname,
-                  execution_plan_uuid: execution_plan_uuid,
-                  run_step_id: run_step_id,
-                  job: content)
-      end
-
-      after do
-        Proxy::RemoteExecution::Ssh.job_storage.delete
+          .store_job(hostname,
+                     execution_plan_uuid,
+                     run_step_id,
+                     content,
+                     uuid: uuid)
       end
 
       describe '/jobs/update' do
@@ -162,12 +160,7 @@ module Proxy::RemoteExecution::Ssh
           Proxy::RemoteExecution::Ssh::Api.any_instance.expects(:https_cert_cn).returns(hostname)
           Proxy::RemoteExecution::Ssh
             .job_storage
-            .insert(timestamp: Time.now.utc,
-                    uuid: SecureRandom.uuid,
-                    hostname: 'another.host',
-                    execution_plan_uuid: SecureRandom.uuid,
-                    run_step_id: 1,
-                    job: 'hello')
+            .store_job('another.host', SecureRandom.uuid, 1, 'hello')
 
           get '/jobs'
           _(last_response.status).must_equal 200

@@ -31,6 +31,7 @@ module Proxy::RemoteExecution::Ssh
       require 'smart_proxy_remote_execution_ssh/log_filter'
       require 'smart_proxy_remote_execution_ssh/runners'
       require 'smart_proxy_remote_execution_ssh/utils'
+      require 'smart_proxy_remote_execution_ssh/job_storage'
 
       Proxy::RemoteExecution::Ssh.validate!
 
