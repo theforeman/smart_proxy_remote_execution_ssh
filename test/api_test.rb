@@ -80,69 +80,100 @@ module Proxy::RemoteExecution::Ssh
       end
     end
 
-    describe '/job/update' do
-      let(:hostname) { 'myhost.example.com' }
+    describe 'job storage' do
+      let(:uuid) { SecureRandom.uuid }
+      let(:execution_plan_uuid) { SecureRandom.uuid }
+      let(:run_step_id) { 1 }
+      let(:hostname) { 'something.somewhere.com' }
+      let(:content) { 'content' }
 
-      before { Proxy::RemoteExecution::Ssh.job_storage["#{hostname}-12345", 1, 'message'] = 'hello' }
-      after  { Proxy::RemoteExecution::Ssh.job_storage.delete("#{hostname}-12345") }
-
-      it 'returns 403 if HTTPS is used and no cert is provided' do
-        post '/job/12345/1/update', {}, 'HTTPS' => 1
-        _(last_response.status).must_equal 403
+      before do
+        Proxy::RemoteExecution::Ssh
+          .job_storage
+          .insert(timestamp: Time.now.utc,
+                  uuid: uuid,
+                  hostname: hostname,
+                  execution_plan_uuid: execution_plan_uuid,
+                  run_step_id: run_step_id,
+                  job: content)
       end
 
-      it 'returns 404 if job does not exist' do
-        Proxy::RemoteExecution::Ssh::Api.any_instance.expects(:https_cert_cn).returns(hostname)
-        post '/job/12346/1/update'
-        _(last_response.status).must_equal 404
+      after do
+        Proxy::RemoteExecution::Ssh.job_storage.delete
       end
 
-      it 'dispatches an event' do
-        Proxy::RemoteExecution::Ssh::Api.any_instance.expects(:https_cert_cn).returns(hostname)
-        fake_world = mock
-        fake_world.expects(:event) do |task_id, step_id, _payload|
-          task_id == '12345' && step_id == 1
+      describe '/jobs/update' do
+        it 'returns 403 if HTTPS is used and no cert is provided' do
+          post '/jobs/12345/update', {}, 'HTTPS' => 1
+          _(last_response.status).must_equal 403
         end
-        Proxy::RemoteExecution::Ssh::Api.any_instance.expects(:world).returns(fake_world)
 
-        post '/job/12345/1/update', '{}'
-        _(last_response.status).must_equal 200
-      end
-    end
+        it 'returns 404 if job does not exist' do
+          Proxy::RemoteExecution::Ssh::Api.any_instance.expects(:https_cert_cn).returns(hostname)
+          post '/jobs/12345/update'
+          _(last_response.status).must_equal 404
+        end
 
-    describe '/job/store' do
-      let(:hostname) { 'myhost.example.com' }
+        it 'dispatches an event' do
+          Proxy::RemoteExecution::Ssh::Api.any_instance.expects(:https_cert_cn).returns(hostname)
+          fake_world = mock
+          fake_world.expects(:event) do |task_id, step_id, _payload|
+            task_id == execution_plan_uuid && step_id == run_step_id
+          end
+          Proxy::RemoteExecution::Ssh::Api.any_instance.expects(:world).returns(fake_world)
 
-      before { Proxy::RemoteExecution::Ssh.job_storage["#{hostname}-12345", 1, 'message'] = 'hello' }
-      after  { Proxy::RemoteExecution::Ssh.job_storage.delete("#{hostname}-12345") }
-
-      it 'returns 403 if HTTPS is used and no cert is provided' do
-        get '/job/store/12345/1/message', {}, 'HTTPS' => 1
-        _(last_response.status).must_equal 403
-      end
-
-      it 'returns content if there is some and notifies the action' do
-        Proxy::RemoteExecution::Ssh::Api.any_instance.expects(:https_cert_cn).returns(hostname)
-        fake_world = mock
-        fake_world.expects(:event).with('12345', 1, Proxy::RemoteExecution::Ssh::PullScript::JobDelivered)
-        Proxy::RemoteExecution::Ssh::Api.any_instance.expects(:world).returns(fake_world)
-
-        get '/job/store/12345/1/message'
-        _(last_response.status).must_equal 200
-        _(last_response.body).must_equal 'hello'
+          post "/jobs/#{uuid}/update", '{}'
+          _(last_response.status).must_equal 200
+        end
       end
 
-      it 'returns 404 if there is no content' do
-        Proxy::RemoteExecution::Ssh::Api.any_instance.expects(:https_cert_cn).times(3).returns(hostname)
+      describe '/jobs/:job_uuid' do
+        it 'returns 403 if HTTPS is used and no cert is provided' do
+          get '/jobs/12345', {}, 'HTTPS' => 1
+          _(last_response.status).must_equal 403
+        end
 
-        get '/job/store/12345/1/something.tar.gz'
-        _(last_response.status).must_equal 404
+        it 'returns content if there is some and notifies the action' do
+          Proxy::RemoteExecution::Ssh::Api.any_instance.expects(:https_cert_cn).returns(hostname)
+          fake_world = mock
+          fake_world.expects(:event).with(execution_plan_uuid, run_step_id, Actions::PullScript::JobDelivered)
+          Proxy::RemoteExecution::Ssh::Api.any_instance.expects(:world).returns(fake_world)
 
-        get '/job/store/12345/2/something.tar.gz'
-        _(last_response.status).must_equal 404
+          get "/jobs/#{uuid}"
+          _(last_response.status).must_equal 200
+          _(last_response.body).must_equal content
+        end
 
-        get '/job/store/12346/2/something.tar.gz'
-        _(last_response.status).must_equal 404
+        it 'returns 404 if there is no content' do
+          Proxy::RemoteExecution::Ssh::Api.any_instance.expects(:https_cert_cn).returns(hostname)
+
+          get '/jobs/12345'
+          _(last_response.status).must_equal 404
+        end
+      end
+
+      describe '/jobs' do
+        it 'returns 403 if HTTPS is used and no cert is provided' do
+          get '/jobs', {}, 'HTTPS' => 1
+          _(last_response.status).must_equal 403
+        end
+
+        it 'returns a list of job uuids for a given host' do
+          Proxy::RemoteExecution::Ssh::Api.any_instance.expects(:https_cert_cn).returns(hostname)
+          Proxy::RemoteExecution::Ssh
+            .job_storage
+            .insert(timestamp: Time.now.utc,
+                    uuid: SecureRandom.uuid,
+                    hostname: 'another.host',
+                    execution_plan_uuid: SecureRandom.uuid,
+                    run_step_id: 1,
+                    job: 'hello')
+
+          get '/jobs'
+          _(last_response.status).must_equal 200
+          data = MultiJson.load(last_response.body)
+          _(data).must_equal [uuid]
+        end
       end
     end
   end

@@ -2,6 +2,7 @@ require 'smart_proxy_dynflow'
 require 'smart_proxy_remote_execution_ssh/version'
 require 'smart_proxy_remote_execution_ssh/plugin'
 require 'smart_proxy_remote_execution_ssh/webrick_ext'
+require 'sequel'
 
 module Proxy::RemoteExecution
   module Ssh
@@ -70,7 +71,23 @@ module Proxy::RemoteExecution
       end
 
       def job_storage
-        @job_storage ||= Proxy::MemoryStore.new
+        @job_storage ||= initialize_job_storage
+        @job_storage[:jobs]
+      end
+
+      private
+
+      def initialize_job_storage
+        db = Sequel.sqlite
+        db.create_table :jobs do
+          DateTime :timestamp, null: false
+          String :uuid, fixed: true, size: 36, primary_key: true, null: false
+          String :hostname, null: false, index: true
+          String :execution_plan_uuid, fixed: true, size: 36, null: false, index: true
+          Integer :run_step_id, null: false
+          String :job, text: true
+        end
+        db
       end
     end
   end

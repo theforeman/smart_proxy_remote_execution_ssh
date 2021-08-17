@@ -10,6 +10,7 @@ module Proxy::RemoteExecution::Ssh::Actions
     def plan(action_input, mqtt: false)
       super(action_input)
       input[:with_mqtt] = mqtt
+      input[:job_uuid] = SecureRandom.uuid
     end
 
     def run(event = nil)
@@ -22,14 +23,20 @@ module Proxy::RemoteExecution::Ssh::Actions
     end
 
     def init_run
-      job_storage["#{input[:hostname]}-#{execution_plan_id}", run_step_id, 'script.sh'] = input[:script]
+      job_storage.insert(timestamp: Time.now.utc,
+                         uuid: input[:job_uuid],
+                         hostname: input[:hostname],
+                         execution_plan_uuid: execution_plan_id,
+                         run_step_id: run_step_id,
+                         job: input[:script])
+      # job_storage["#{input[:hostname]}-#{execution_plan_id}", run_step_id, 'script.sh'] = input[:script]
       output[:state] = :ready_for_pickup
       mqtt_start if input[:with_mqtt]
       suspend
     end
 
     def cleanup(_plan = nil)
-      job_storage.delete("#{input[:hostname]}-#{execution_plan_id}")
+      job_storage.where(execution_plan_uuid: execution_plan_id, run_step_id: run_step_id).delete
     end
 
     def process_external_event(event)
@@ -68,9 +75,10 @@ module Proxy::RemoteExecution::Ssh::Actions
         sent: DateTime.now.iso8601,
         directive: 'foreman',
         metadata: {
-          'return_url': "#{input[:proxy_url]}/job/#{execution_plan_id}/#{run_step_id}/update",
+          'job_uuid': input[:job_uuid],
+          'return_url': "#{input[:proxy_url]}/jobs/#{input[:job_uuid]}/update",
         },
-        content: "#{input[:proxy_url]}/job/store/#{execution_plan_id}/#{run_step_id}/script.sh",
+        content: "#{input[:proxy_url]}/jobs/#{input[:job_uuid]}",
       }
       mqtt_notify payload
       output[:state] = :notified

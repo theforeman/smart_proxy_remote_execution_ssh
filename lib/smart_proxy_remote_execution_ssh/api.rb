@@ -42,38 +42,42 @@ module Proxy::RemoteExecution
       # Payload is a hash where
       # exit_code: Integer | NilClass
       # output: String
-      post '/job/:task_id/:step_id/update' do |task_id, step_id|
+      post '/jobs/:job_uuid/update' do |job_uuid|
         do_authorize_with_ssl_client
 
-        path = job_path(https_cert_cn, task_id, nil, nil).first
-        if Proxy::RemoteExecution::Ssh.job_storage[path].nil?
+        job_record = Proxy::RemoteExecution::Ssh.job_storage.where(uuid: job_uuid, hostname: https_cert_cn).first
+        if job_record.nil?
           status 404
           return ''
         end
 
         data = MultiJson.load(request.body.read)
-        world.event(task_id, step_id, ::Proxy::Dynflow::Runner::ExternalEvent.new(data))
+        world.event job_record[:execution_plan_uuid],
+                    job_record[:run_step_id],
+                    ::Proxy::Dynflow::Runner::ExternalEvent.new(data)
       end
 
-      get "/job/store/:task_id/:step_id/:file" do |task_id, step_id, file|
+      get '/jobs' do
         do_authorize_with_ssl_client
 
-        path = job_path(https_cert_cn, task_id, step_id.to_i, file)
-        content = Proxy::RemoteExecution::Ssh.job_storage[*path]
-        if content
-          world.event(task_id, step_id.to_i, Proxy::RemoteExecution::Ssh::PullScript::JobDelivered)
-          return content
-        end
-
-        status 404
-        ''
+        uuids = Proxy::RemoteExecution::Ssh.job_storage.order(:timestamp)
+                                                       .where(hostname: https_cert_cn)
+                                                       .select_map(:uuid)
+        MultiJson.dump(uuids)
       end
 
-      def job_path(hostname, task_id, step_id, file)
-        ["#{hostname}-#{task_id}",
-         step_id,
-         file,
-        ]
+      get "/jobs/:job_uuid" do |job_uuid|
+        do_authorize_with_ssl_client
+
+        job_record = Proxy::RemoteExecution::Ssh.job_storage.where(uuid: job_uuid, hostname: https_cert_cn).first
+
+        if job_record.nil?
+          status 404
+          return ''
+        end
+
+        world.event(job_record[:execution_plan_uuid], job_record[:run_step_id], Actions::PullScript::JobDelivered)
+        job_record[:job]
       end
     end
   end
