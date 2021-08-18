@@ -48,9 +48,7 @@ module Proxy::RemoteExecution
 
         with_authorized_job(job_uuid) do |job_record|
           data = MultiJson.load(request.body.read)
-          world.event job_record[:execution_plan_uuid],
-                      job_record[:run_step_id],
-                      ::Proxy::Dynflow::Runner::ExternalEvent.new(data)
+          notify_job(job_record, ::Proxy::Dynflow::Runner::ExternalEvent.new(data))
         end
       end
 
@@ -64,12 +62,16 @@ module Proxy::RemoteExecution
         do_authorize_with_ssl_client
 
         with_authorized_job(job_uuid) do |job_record|
-          world.event(job_record[:execution_plan_uuid], job_record[:run_step_id], Actions::PullScript::JobDelivered)
+          notify_job(job_record, Actions::PullScript::JobDelivered)
           job_record[:job]
         end
       end
 
       private
+
+      def notify_job(job_record, event)
+        world.event(job_record[:execution_plan_uuid], job_record[:run_step_id], event)
+      end
 
       def with_authorized_job(uuid)
         if (job = authorized_job(uuid))
