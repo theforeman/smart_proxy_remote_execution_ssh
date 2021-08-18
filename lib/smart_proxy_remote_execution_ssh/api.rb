@@ -7,6 +7,7 @@ module Proxy::RemoteExecution
 
     class Api < ::Sinatra::Base
       include Sinatra::Authorization::Helpers
+      include Proxy::Dynflow::Helpers
 
       get "/pubkey" do
         File.read(Ssh.public_key_file)
@@ -45,16 +46,12 @@ module Proxy::RemoteExecution
       post '/jobs/:job_uuid/update' do |job_uuid|
         do_authorize_with_ssl_client
 
-        job_record = Proxy::RemoteExecution::Ssh.job_storage.find_job(https_cert_cn, job_uuid)
-        if job_record.nil?
-          status 404
-          return ''
+        with_authorized_job(job_uuid) do |job_record|
+          data = MultiJson.load(request.body.read)
+          world.event job_record[:execution_plan_uuid],
+                      job_record[:run_step_id],
+                      ::Proxy::Dynflow::Runner::ExternalEvent.new(data)
         end
-
-        data = MultiJson.load(request.body.read)
-        world.event job_record[:execution_plan_uuid],
-                    job_record[:run_step_id],
-                    ::Proxy::Dynflow::Runner::ExternalEvent.new(data)
       end
 
       get '/jobs' do
@@ -66,14 +63,26 @@ module Proxy::RemoteExecution
       get "/jobs/:job_uuid" do |job_uuid|
         do_authorize_with_ssl_client
 
-        job_record = Proxy::RemoteExecution::Ssh.job_storage.find_job(https_cert_cn, job_uuid)
-        if job_record.nil?
-          status 404
-          return ''
+        with_authorized_job(job_uuid) do |job_record|
+          world.event(job_record[:execution_plan_uuid], job_record[:run_step_id], Actions::PullScript::JobDelivered)
+          job_record[:job]
         end
+      end
 
-        world.event(job_record[:execution_plan_uuid], job_record[:run_step_id], Actions::PullScript::JobDelivered)
-        job_record[:job]
+      private
+
+      def with_authorized_job(uuid)
+        if (job = authorized_job(uuid))
+          yield job
+        else
+          halt 404
+        end
+      end
+
+      def authorized_job(uuid)
+        job_record = Proxy::RemoteExecution::Ssh.job_storage.find_job(uuid) || {}
+        return job_record if authorize_with_token(clear: false, task_id: job_record[:execution_plan_uuid]) ||
+                             job_record[:hostname] == https_cert_cn
       end
     end
   end

@@ -22,14 +22,18 @@ module Proxy::RemoteExecution::Ssh::Actions
     end
 
     def init_run
+      otp_password = if input[:with_mqtt]
+                       ::Proxy::Dynflow::Manager.generate_otp(execution_plan_id)
+                     end
       input[:job_uuid] = job_storage.store_job(input[:hostname], execution_plan_id, run_step_id, input[:script])
       output[:state] = :ready_for_pickup
-      mqtt_start if input[:with_mqtt]
+      mqtt_start(otp_password) if input[:with_mqtt]
       suspend
     end
 
     def cleanup(_plan = nil)
       job_storage.drop_job(execution_plan_id, run_step_id)
+      Proxy::Dynflow::OtpManager.passwords.delete(execution_plan_id)
     end
 
     def process_external_event(event)
@@ -60,7 +64,7 @@ module Proxy::RemoteExecution::Ssh::Actions
       suspend
     end
 
-    def mqtt_start
+    def mqtt_start(otp_password)
       payload = {
         type: 'data',
         message_id: SecureRandom.uuid,
@@ -69,6 +73,8 @@ module Proxy::RemoteExecution::Ssh::Actions
         directive: 'foreman',
         metadata: {
           'job_uuid': input[:job_uuid],
+          'username': execution_plan_id,
+          'password': otp_password,
           'return_url': "#{input[:proxy_url]}/jobs/#{input[:job_uuid]}/update",
         },
         content: "#{input[:proxy_url]}/jobs/#{input[:job_uuid]}",
