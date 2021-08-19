@@ -1,6 +1,7 @@
 require 'net/ssh'
 require 'fileutils'
 require 'pty'
+require 'smart_proxy_dynflow/runner/command'
 
 # Rubocop can't make up its mind what it wants
 # rubocop:disable Lint/SuppressedException, Lint/RedundantCopDisableDirective
@@ -98,6 +99,7 @@ module Proxy::RemoteExecution::Ssh::Runners
 
   # rubocop:disable Metrics/ClassLength
   class ScriptRunner < Proxy::Dynflow::Runner::Base
+    include Proxy::Dynflow::Runner::Command
     attr_reader :execution_timeout_interval
 
     EXPECTED_POWER_ACTION_MESSAGES = ['restart host', 'shutdown host'].freeze
@@ -180,18 +182,6 @@ module Proxy::RemoteExecution::Ssh::Runners
       SCRIPT
     end
 
-    def refresh
-      return if @session.nil?
-
-      with_retries do
-        with_disconnect_handling do
-          @session.process(0)
-        end
-      end
-    ensure
-      check_expecting_disconnect
-    end
-
     def kill
       if @session
         run_sync("pkill -f #{remote_command_file('script')}")
@@ -262,13 +252,6 @@ module Proxy::RemoteExecution::Ssh::Runners
       @session && !@session.closed? && @cleanup_working_dirs
     end
 
-    def session
-      @session ||= begin
-                     @logger.debug("opening session to #{@ssh_user}@#{@host}")
-                     Net::SSH.start(@host, @ssh_user, ssh_options)
-                   end
-    end
-
     def ssh_options
       ssh_options = {}
       ssh_options[:port] = @ssh_port if @ssh_port
@@ -295,34 +278,22 @@ module Proxy::RemoteExecution::Ssh::Runners
     # available. The yielding doesn't happen automatically, but as
     # part of calling the `refresh` method.
     def run_async(command)
-      raise 'Async command already in progress' if @started
+      options = []
+      options << "-o User=#{@ssh_user}"
+      options << "-o Port=#{ssh_options[:port]}" if ssh_options[:port]
+      options << "-o IdentityFile=#{ssh_options[:keys][0]}" if ssh_options[:keys]
+      options << "-o IdentitiesOnly=yes"
+      options << "-o StrictHostKeyChecking=accept-new"
+      options << "-o PreferredAuthentications=#{ssh_options[:auth_methods].join(',')}"
+      options << "-o UserKnownHostsFile=#{ssh_options[:user_known_hosts_file]}" if ssh_options[:user_known_hosts_file]
+      options << "-o NumberOfPasswordPrompts=#{ssh_options[:number_of_password_prompts]}"
+      options << "-o LogLevel=#{ssh_options[:verbose]}"
 
-      @started = false
-      @user_method.reset
+      @command_out, slave = PTY.open
+      @command_in, write = IO.pipe
+      @command_pid = spawn({"SSHPASS" => ssh_options[:password]}, "/usr/bin/sshpass", "-e", "/usr/bin/ssh", "#{@host}", *options, command, :in => @command_in, :out => slave)
+      @command_in.close
 
-      session.open_channel do |channel|
-        channel.request_pty
-        channel.on_data do |ch, data|
-          publish_data(data, 'stdout') unless @user_method.filter_password?(data)
-          @user_method.on_data(data, ch)
-        end
-        channel.on_extended_data { |ch, type, data| publish_data(data, 'stderr') }
-        # standard exit of the command
-        channel.on_request('exit-status') { |ch, data| publish_exit_status(data.read_long) }
-        # on signal: sending the signal value (such as 'TERM')
-        channel.on_request('exit-signal') do |ch, data|
-          publish_exit_status(data.read_string)
-          ch.close
-          # wait for the channel to finish so that we know at the end
-          # that the session is inactive
-          ch.wait
-        end
-        channel.exec(command) do |_, success|
-          @started = true
-          raise('Error initializing command') unless success
-        end
-      end
-      session.process(0) { !run_started? }
       return true
     end
 
