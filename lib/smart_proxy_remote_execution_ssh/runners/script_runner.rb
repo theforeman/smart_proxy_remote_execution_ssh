@@ -182,6 +182,12 @@ module Proxy::RemoteExecution::Ssh::Runners
       SCRIPT
     end
 
+    def refresh
+      super
+    ensure
+      check_expecting_disconnect
+    end
+
     def kill
       if @session
         run_sync("pkill -f #{remote_command_file('script')}")
@@ -234,7 +240,8 @@ module Proxy::RemoteExecution::Ssh::Runners
     rescue StandardError => e
       publish_exception('Error when removing remote working dir', e, false)
     ensure
-      @session.close if @session && !@session.closed?
+      system("/usr/bin/ssh", @host, "-o", "ControlPath=/tmp/ssh-#{@ssh_user}@#{@host}", "-O", "exit")
+      @session = nil
       FileUtils.rm_rf(local_command_dir) if Dir.exist?(local_command_dir) && @cleanup_working_dirs
     end
 
@@ -249,38 +256,32 @@ module Proxy::RemoteExecution::Ssh::Runners
     end
 
     def should_cleanup?
-      @session && !@session.closed? && @cleanup_working_dirs
+      @session && @cleanup_working_dirs
+    end
+
+    def session(command)
+      @session = true
+      command_out, slave = PTY.open
+      command_in, write = IO.pipe
+      command_pid = spawn(({'SSHPASS' => @ssh_password} if @ssh_password), '/usr/bin/sshpass', '-e', '/usr/bin/ssh', @host, *ssh_options, command, :in => command_in, :out => slave)
+      command_in.close
+      return command_in, command_out, command_pid, slave, write
     end
 
     def ssh_options
-      ssh_options = {}
-      ssh_options[:port] = @ssh_port if @ssh_port
-      ssh_options[:keys] = [@client_private_key_file] if @client_private_key_file
-      ssh_options[:password] = @ssh_password if @ssh_password
-      ssh_options[:passphrase] = @key_passphrase if @key_passphrase
-      ssh_options[:keys_only] = true
-      # if the host public key is contained in the known_hosts_file,
-      # verify it, otherwise, if missing, import it and continue
-      ssh_options[:verify_host_key] = VERIFY_HOST_KEY
-      ssh_options[:auth_methods] = available_authentication_methods
-      ssh_options[:user_known_hosts_file] = prepare_known_hosts if @host_public_key
-      ssh_options[:number_of_password_prompts] = 1
-      ssh_options[:verbose] = settings[:ssh_log_level]
-      ssh_options[:logger] = Proxy::RemoteExecution::Ssh::LogFilter.new(Proxy::Dynflow::Log.instance)
-      return ssh_options
-    end
-
-    def options
-      options_arr = []
-      options_arr << "-o User=#{@ssh_user}"
-      options_arr << "-o Port=#{ssh_options[:port]}" if ssh_options[:port]
-      options_arr << "-o IdentityFile=#{ssh_options[:keys][0]}" if ssh_options[:keys]&.any?
-      options_arr << "-o IdentitiesOnly=yes"
-      options_arr << "-o StrictHostKeyChecking=accept-new"
-      options_arr << "-o PreferredAuthentications=#{ssh_options[:auth_methods].join(',')}"
-      options_arr << "-o UserKnownHostsFile=#{ssh_options[:user_known_hosts_file]}" if ssh_options[:user_known_hosts_file]
-      options_arr << "-o NumberOfPasswordPrompts=#{ssh_options[:number_of_password_prompts]}"
-      options_arr << "-o LogLevel=#{ssh_options[:verbose]}"
+      ssh_options = []
+      ssh_options << "-o User=#{@ssh_user}"
+      ssh_options << "-o Port=#{@ssh_port}" if @ssh_port
+      ssh_options << "-o IdentityFile=#{[@client_private_key_file][0]}" if @client_private_key_file
+      ssh_options << "-o IdentitiesOnly=yes"
+      ssh_options << "-o StrictHostKeyChecking=accept-new"
+      ssh_options << "-o PreferredAuthentications=#{available_authentication_methods.join(',')}"
+      ssh_options << "-o UserKnownHostsFile=#{prepare_known_hosts}" if prepare_known_hosts
+      ssh_options << "-o NumberOfPasswordPrompts=1"
+      ssh_options << "-o LogLevel=#{settings[:ssh_log_level]}"
+      ssh_options << "-o ControlMaster=yes"
+      ssh_options << "-o ControlPath=/tmp/ssh-#{@ssh_user}@#{@host}"
+      ssh_options << "-o ControlPersist=yes"
     end
 
     def settings
@@ -291,10 +292,7 @@ module Proxy::RemoteExecution::Ssh::Runners
     # available. The yielding doesn't happen automatically, but as
     # part of calling the `refresh` method.
     def run_async(command)
-      @command_out, slave = PTY.open
-      @command_in, write = IO.pipe
-      @command_pid = spawn({'SSHPASS' => ssh_options[:password]}, '/usr/bin/sshpass', '-e', '/usr/bin/ssh', @host, *options, command, :in => @command_in, :out => slave)
-      @command_in.close
+      @command_in, @command_out, @command_pid = session(command)
       return true
     end
 
@@ -307,22 +305,11 @@ module Proxy::RemoteExecution::Ssh::Runners
       stderr = ''
       exit_status = nil
 
-      master, slave = PTY.open
-      read, write = IO.pipe
-      pid = spawn({'SSHPASS' => ssh_options[:password]}, '/usr/bin/sshpass', '-e', '/usr/bin/ssh', @host, *options, command, :in => read, :out => slave)
-      read.close
+      read, master, pid, slave, write = session(command)
       slave.close
-
       write.puts(stdin) unless stdin.nil?
       write.close
-
-      loop do
-        stdout += begin
-                    master.gets
-                  rescue Errno::EIO
-                    break
-                  end
-      end
+      stdout += master.readline until master.eof? rescue
 
       exit_status = Process.wait2(pid)[1].exitstatus
       return exit_status, stdout, stderr
