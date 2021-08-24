@@ -23,7 +23,7 @@ module Proxy::RemoteExecution::Ssh::Actions
 
     def init_run
       otp_password = if input[:with_mqtt]
-                       ::Proxy::Dynflow::Manager.generate_otp(execution_plan_id)
+                       ::Proxy::Dynflow::OtpManager.generate_otp(execution_plan_id)
                      end
       input[:job_uuid] = job_storage.store_job(input[:hostname], execution_plan_id, run_step_id, input[:script])
       output[:state] = :ready_for_pickup
@@ -90,7 +90,7 @@ module Proxy::RemoteExecution::Ssh::Actions
     end
 
     def settings
-      Proxy::Plugin::RemoteExecution::Ssh::Plugin.settings
+      Proxy::RemoteExecution::Ssh::Plugin.settings
     end
 
     def job_storage
