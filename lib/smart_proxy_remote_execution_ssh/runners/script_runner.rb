@@ -23,7 +23,7 @@ module Proxy::RemoteExecution::Ssh::Runners
 
     def on_data(received_data, ssh_channel)
       if received_data.match(login_prompt)
-        ssh_channel.send_data(effective_user_password + "\n")
+        ssh_channel.puts(effective_user_password)
         @password_sent = true
       end
     end
@@ -240,13 +240,14 @@ module Proxy::RemoteExecution::Ssh::Runners
     rescue StandardError => e
       publish_exception('Error when removing remote working dir', e, false)
     ensure
-      system("/usr/bin/ssh", @host, "-o", "ControlPath=/tmp/ssh-#{@ssh_user}@#{@host}", "-O", "exit")
+      system("/usr/bin/ssh", @host, "-o", "User=#{@ssh_user}", "-o", "ControlPath=#{@local_working_dir}/ssh-%r@%h", "-O", "exit")
       @session = nil
       FileUtils.rm_rf(local_command_dir) if Dir.exist?(local_command_dir) && @cleanup_working_dirs
     end
 
     def publish_data(data, type)
-      super(data.force_encoding('UTF-8'), type)
+      super(data.force_encoding('UTF-8'), type) unless @user_method.filter_password?(data)
+      @user_method.on_data(data, @command_in)
     end
 
     private
@@ -264,7 +265,6 @@ module Proxy::RemoteExecution::Ssh::Runners
       command_out, slave = PTY.open
       command_in, write = IO.pipe
       command_pid = spawn(({'SSHPASS' => @ssh_password} if @ssh_password), '/usr/bin/sshpass', '-e', '/usr/bin/ssh', @host, *ssh_options, command, :in => command_in, :out => slave)
-      command_in.close
       return command_in, command_out, command_pid, slave, write
     end
 
@@ -280,7 +280,7 @@ module Proxy::RemoteExecution::Ssh::Runners
       ssh_options << "-o NumberOfPasswordPrompts=1"
       ssh_options << "-o LogLevel=#{settings[:ssh_log_level]}"
       ssh_options << "-o ControlMaster=yes"
-      ssh_options << "-o ControlPath=/tmp/ssh-#{@ssh_user}@#{@host}"
+      ssh_options << "-o ControlPath=#{@local_working_dir}/ssh-%r@%h"
       ssh_options << "-o ControlPersist=yes"
     end
 
@@ -292,7 +292,13 @@ module Proxy::RemoteExecution::Ssh::Runners
     # available. The yielding doesn't happen automatically, but as
     # part of calling the `refresh` method.
     def run_async(command)
+      raise 'Async command already in progress' if @started
+
+      @started = false
+      @user_method.reset
       @command_in, @command_out, @command_pid = session(command)
+      @started = true
+
       return true
     end
 
@@ -306,6 +312,7 @@ module Proxy::RemoteExecution::Ssh::Runners
       exit_status = nil
 
       read, master, pid, slave, write = session(command)
+      read.close
       slave.close
       write.puts(stdin) unless stdin.nil?
       write.close
