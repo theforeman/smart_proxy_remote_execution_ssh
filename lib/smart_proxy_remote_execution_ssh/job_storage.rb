@@ -34,7 +34,7 @@ module Proxy::RemoteExecution::Ssh
     end
 
     def drop_job(execution_plan_uuid, run_step_id)
-      jobs.where(execution_plan_uuid: execution_plan_id, run_step_id: run_step_id).delete
+      jobs.where(execution_plan_uuid: execution_plan_uuid, run_step_id: run_step_id).delete
     end
 
     private

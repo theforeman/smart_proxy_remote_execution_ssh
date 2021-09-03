@@ -27,6 +27,7 @@ module Proxy::RemoteExecution::Ssh::Actions
                      end
       input[:job_uuid] = job_storage.store_job(input[:hostname], execution_plan_id, run_step_id, input[:script])
       output[:state] = :ready_for_pickup
+      output[:result] = []
       mqtt_start(otp_password) if input[:with_mqtt]
       suspend
     end
@@ -40,7 +41,7 @@ module Proxy::RemoteExecution::Ssh::Actions
       output[:state] = :running
       data = event.data
       continuous_output = Proxy::Dynflow::ContinuousOutput.new
-      continuous_output.add_output(lines, 'stdout') if data.key?('output')
+      Array(data['output']).each { |line| continuous_output.add_output(line, 'stdout') } if data.key?('output')
       exit_code = data['exit_code'].to_i if data['exit_code']
       process_update(Proxy::Dynflow::Runner::Update.new(continuous_output, exit_code))
     end
@@ -75,9 +76,9 @@ module Proxy::RemoteExecution::Ssh::Actions
           'job_uuid': input[:job_uuid],
           'username': execution_plan_id,
           'password': otp_password,
-          'return_url': "#{input[:proxy_url]}/jobs/#{input[:job_uuid]}/update",
+          'return_url': "#{input[:proxy_url]}/ssh/jobs/#{input[:job_uuid]}/update",
         },
-        content: "#{input[:proxy_url]}/jobs/#{input[:job_uuid]}",
+        content: "#{input[:proxy_url]}/ssh/jobs/#{input[:job_uuid]}",
       }
       mqtt_notify payload
       output[:state] = :notified
