@@ -25,7 +25,7 @@ module Proxy::RemoteExecution::Ssh::Actions
       otp_password = if input[:with_mqtt]
                        ::Proxy::Dynflow::OtpManager.generate_otp(execution_plan_id)
                      end
-      input[:job_uuid] = job_storage.store_job(input[:hostname], execution_plan_id, run_step_id, input[:script])
+      input[:job_uuid] = job_storage.store_job(host_name, execution_plan_id, run_step_id, input[:script])
       output[:state] = :ready_for_pickup
       output[:result] = []
       mqtt_start(otp_password) if input[:with_mqtt]
@@ -86,8 +86,20 @@ module Proxy::RemoteExecution::Ssh::Actions
 
     def mqtt_notify(payload)
       MQTT::Client.connect(settings.mqtt_broker, settings.mqtt_port) do |c|
-        c.publish("yggdrasil/#{input[:hostname]}/data/in", JSON.dump(payload), false, 1)
+        c.publish(mqtt_topic, JSON.dump(payload), false, 1)
       end
+    end
+
+    def host_name
+      alternative_names = input.fetch(:alternative_names, {})
+
+      alternative_names[:consumer_uuid] ||
+        alternative_names[:fqdn] ||
+        input[:hostname]
+    end
+
+    def mqtt_topic
+      "yggdrasil/#{host_name}/data/in"
     end
 
     def settings
