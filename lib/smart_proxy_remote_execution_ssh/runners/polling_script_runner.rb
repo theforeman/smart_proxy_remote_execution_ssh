@@ -132,8 +132,7 @@ module Proxy::RemoteExecution::Ssh::Runners
     def destroy_session
       if @session
         @logger.debug("Closing session with #{@ssh_user}@#{@host}")
-        system("/usr/bin/ssh", @host, "-o", "User=#{@ssh_user}", "-o", "ControlPath=#{@local_working_dir}/ssh-%r@%h", "-O", "exit")
-        @session = nil
+        close_session
       end
     end
   end

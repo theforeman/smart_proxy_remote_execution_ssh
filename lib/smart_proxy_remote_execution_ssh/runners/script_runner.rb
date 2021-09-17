@@ -235,13 +235,17 @@ module Proxy::RemoteExecution::Ssh::Runners
       end
     end
 
+    def close_session
+      system("/usr/bin/ssh", @host, "-o", "User=#{@ssh_user}", "-o", "ControlPath=#{control_socket_file}", "-O", "exit", [:out, :err] => "/dev/null")
+      @session = nil
+    end
+
     def close
       run_sync("rm -rf \"#{remote_command_dir}\"") if should_cleanup?
     rescue StandardError => e
       publish_exception('Error when removing remote working dir', e, false)
     ensure
-      system("/usr/bin/ssh", @host, "-o", "User=#{@ssh_user}", "-o", "ControlPath=#{@local_working_dir}/ssh-%r@%h", "-O", "exit")
-      @session = nil
+      close_session
       FileUtils.rm_rf(local_command_dir) if Dir.exist?(local_command_dir) && @cleanup_working_dirs
     end
 
@@ -262,25 +266,33 @@ module Proxy::RemoteExecution::Ssh::Runners
 
     def session(command)
       @session = true
-      command_out, slave = PTY.open
-      command_in, write = IO.pipe
-      command_pid = spawn(({'SSHPASS' => @ssh_password} if @ssh_password), '/usr/bin/sshpass', '-e', '/usr/bin/ssh', @host, *ssh_options, command, :in => command_in, :out => slave)
-      return command_in, command_out, command_pid, slave, write
+
+      in_read, in_write = IO.pipe
+      out_read, out_write = IO.pipe
+      command_pid = if @ssh_password 
+                      spawn({'SSHPASS' => @ssh_password}, '/usr/bin/sshpass', '-e', '/usr/bin/ssh', @host, *ssh_options, command, :in => in_read, :out => out_write)
+                    else
+                      spawn('/usr/bin/ssh', @host, *ssh_options, command, :in => in_read, :out => out_write)
+                    end
+      in_read.close
+      out_write.close
+
+      return in_write, out_read, command_pid
     end
 
     def ssh_options
       ssh_options = []
       ssh_options << "-o User=#{@ssh_user}"
       ssh_options << "-o Port=#{@ssh_port}" if @ssh_port
-      ssh_options << "-o IdentityFile=#{[@client_private_key_file][0]}" if @client_private_key_file
+      ssh_options << "-o IdentityFile=#{@client_private_key_file}" if @client_private_key_file
       ssh_options << "-o IdentitiesOnly=yes"
-      ssh_options << "-o StrictHostKeyChecking=accept-new"
+      ssh_options << "-o StrictHostKeyChecking=no"
       ssh_options << "-o PreferredAuthentications=#{available_authentication_methods.join(',')}"
-      ssh_options << "-o UserKnownHostsFile=#{prepare_known_hosts}" if prepare_known_hosts
+      ssh_options << "-o UserKnownHostsFile=#{prepare_known_hosts}" if @host_public_key
       ssh_options << "-o NumberOfPasswordPrompts=1"
       ssh_options << "-o LogLevel=#{settings[:ssh_log_level]}"
-      ssh_options << "-o ControlMaster=yes"
-      ssh_options << "-o ControlPath=#{@local_working_dir}/ssh-%r@%h"
+      ssh_options << "-o ControlMaster=auto"
+      ssh_options << "-o ControlPath=#{control_socket_file}"
       ssh_options << "-o ControlPersist=yes"
     end
 
@@ -311,12 +323,11 @@ module Proxy::RemoteExecution::Ssh::Runners
       stderr = ''
       exit_status = nil
 
-      read, master, pid, slave, write = session(command)
-      read.close
-      slave.close
-      write.puts(stdin) unless stdin.nil?
-      write.close
-      stdout += master.readline until master.eof? rescue
+      tx, rx, pid = session(command)
+      tx.puts(stdin) unless stdin.nil?
+      tx.close
+      stdout += rx.read until rx.eof? rescue
+      rx.close
 
       exit_status = Process.wait2(pid)[1].exitstatus
       return exit_status, stdout, stderr
@@ -344,6 +355,10 @@ module Proxy::RemoteExecution::Ssh::Runners
 
     def remote_command_file(filename)
       File.join(remote_command_dir, filename)
+    end
+
+    def control_socket_file
+      File.join(ensure_local_directory(local_command_dir), "socket")
     end
 
     def ensure_local_directory(path)
