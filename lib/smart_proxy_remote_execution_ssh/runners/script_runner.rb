@@ -269,11 +269,10 @@ module Proxy::RemoteExecution::Ssh::Runners
 
       in_read, in_write = IO.pipe
       out_read, out_write = IO.pipe
-      command_pid = if @ssh_password 
-                      spawn({'SSHPASS' => @ssh_password}, '/usr/bin/sshpass', '-e', '/usr/bin/ssh', @host, *ssh_options, command, :in => in_read, :out => out_write)
-                    else
-                      spawn('/usr/bin/ssh', @host, *ssh_options, command, :in => in_read, :out => out_write)
-                    end
+      args = []
+      args += [{'SSHPASS' => @ssh_password}, '/usr/bin/sshpass', '-e'] if @ssh_password
+      args += ['/usr/bin/ssh', @host, ssh_options, command].flatten
+      command_pid = spawn(*args, :in => in_read, :out => out_write)
       in_read.close
       out_write.close
 
