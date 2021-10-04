@@ -1,6 +1,5 @@
 require 'net/ssh'
 require 'fileutils'
-require 'pty'
 require 'smart_proxy_dynflow/runner/command'
 
 # Rubocop can't make up its mind what it wants
@@ -104,9 +103,6 @@ module Proxy::RemoteExecution::Ssh::Runners
 
     EXPECTED_POWER_ACTION_MESSAGES = ['restart host', 'shutdown host'].freeze
     DEFAULT_REFRESH_INTERVAL = 1
-    MAX_PROCESS_RETRIES = 4
-    VERIFY_HOST_KEY = Gem::Version.create(Net::SSH::Version::STRING) < Gem::Version.create('5.0.0') ||
-                      :accept_new_or_local_tunnel
 
     def initialize(options, user_method, suspended_action: nil)
       super suspended_action: suspended_action
@@ -183,6 +179,7 @@ module Proxy::RemoteExecution::Ssh::Runners
     end
 
     def refresh
+      return if @session.nil?
       super
     ensure
       check_expecting_disconnect
@@ -205,34 +202,6 @@ module Proxy::RemoteExecution::Ssh::Runners
 
     def timeout_interval
       execution_timeout_interval
-    end
-
-    def with_retries
-      tries = 0
-      begin
-        yield
-      rescue StandardError => e
-        logger.error("Unexpected error: #{e.class} #{e.message}\n #{e.backtrace.join("\n")}")
-        tries += 1
-        if tries <= MAX_PROCESS_RETRIES
-          logger.error('Retrying')
-          retry
-        else
-          publish_exception('Unexpected error', e)
-        end
-      end
-    end
-
-    def with_disconnect_handling
-      yield
-    rescue IOError, Net::SSH::Disconnect => e
-      @session.shutdown!
-      check_expecting_disconnect
-      if @expecting_disconnect
-        publish_exit_status(0)
-      else
-        publish_exception('Unexpected disconnect', e)
-      end
     end
 
     def close_session
@@ -272,7 +241,7 @@ module Proxy::RemoteExecution::Ssh::Runners
       args = []
       args += [{'SSHPASS' => @ssh_password}, '/usr/bin/sshpass', '-e'] if @ssh_password
       args += ['/usr/bin/ssh', @host, ssh_options, command].flatten
-      command_pid = spawn(*args, :in => in_read, :out => out_write)
+      command_pid = spawn(*args, :in => in_read, [:out, :err] => out_write)
       in_read.close
       out_write.close
 
