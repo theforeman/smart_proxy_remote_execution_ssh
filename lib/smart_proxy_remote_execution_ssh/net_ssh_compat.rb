@@ -1,6 +1,5 @@
 module Proxy::RemoteExecution
   module NetSSHCompat
-    # rubocop:disable Metrics/ClassLength
     class Buffer
       # exposes the raw content of the buffer
       attr_reader :content
@@ -10,7 +9,7 @@ module Proxy::RemoteExecution
 
       # Creates a new buffer, initialized to the given content. The position
       # is initialized to the beginning of the buffer.
-      def initialize(content = String.new)
+      def initialize(content = +'')
         @content = content.to_s
         @position = 0
       end
@@ -51,7 +50,7 @@ module Proxy::RemoteExecution
       # Resets the buffer, making it empty. Also, resets the read position to
       # 0.
       def clear!
-        @content = String.new
+        @content = +''
         @position = 0
       end
 
@@ -62,14 +61,14 @@ module Proxy::RemoteExecution
       # would otherwise tend to grow without bound.
       #
       # Returns the buffer object itself.
-      def consume!(n = position)
-        if n >= length
-          # optimize for a fairly common case
+      def consume!(count = position)
+        if count >= length
+          # OPTIMIZE: a fairly common case
           clear!
-        elsif n > 0
-          @content = @content[n..-1] || String.new
-          @position -= n
-          @position = 0 if @position < 0
+        elsif count.positive?
+          @content = @content[count..-1] || +''
+          @position -= count
+          @position = 0 if @position.negative?
         end
         self
       end
@@ -98,7 +97,6 @@ module Proxy::RemoteExecution
         self
       end
     end
-    # rubocop:enable Metrics/ClassLength
 
     module BufferedIO
       # This module is used to extend sockets and other IO objects, to allow
@@ -143,21 +141,13 @@ module Proxy::RemoteExecution
       #       # ...
       #     end
       #   end
-  
-      # Called when the #extend is called on an object, with this module as the
-      # argument. It ensures that the modules instance variables are all properly
-      # initialized.
-      def self.extended(object) # :nodoc:
-        # need to use __send__ because #send is overridden in Socket
-        object.__send__(:initialize_buffered_io)
-      end
 
       # Tries to read up to +n+ bytes of data from the remote end, and appends
       # the data to the input buffer. It returns the number of bytes read, or 0
       # if no data was available to be read.
-      def fill(n = 8192)
+      def fill(count = 8192)
         input.consume!
-        data = recv(n)
+        data = recv(count)
         input.append(data)
         return data.length
       rescue EOFError => e
@@ -186,10 +176,10 @@ module Proxy::RemoteExecution
       # Sends as much of the pending output as possible. Returns +true+ if any
       # data was sent, and +false+ otherwise.
       def send_pending
-        if output.length > 0
+        if output.length.positive?
           sent = send(output.to_s, 0)
           output.consume!(sent)
-          return sent > 0
+          return sent.positive?
         else
           return false
         end
@@ -199,8 +189,8 @@ module Proxy::RemoteExecution
       # buffer is empty.
       def wait_for_pending_sends
         send_pending
-        while output.length > 0
-          result = IO.select(nil, [self]) or next
+        while output.length.positive?
+          result = IO.select(nil, [self]) || next
           next unless result[1].any?
 
           send_pending
@@ -214,9 +204,13 @@ module Proxy::RemoteExecution
       # wrath of "ruby -w". We hates it.
       #++
 
-      def input; @input; end
+      def input
+        @input
+      end
 
-      def output; @output; end
+      def output
+        @output
+      end
 
       # Initializes the intput and output buffers for this object. This method
       # is called automatically when the module is mixed into an object via
