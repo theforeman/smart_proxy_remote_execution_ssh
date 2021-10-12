@@ -56,11 +56,8 @@ module Proxy::RemoteExecution::Ssh::Actions
         # Client was notified or is already running, dealing with this situation
         # is only supported if mqtt is available
         # Otherwise we have to wait it out
-        if input[:with_mqtt]
-          cleanup
-          payload = {} # TODO
-          mqtt_notify payload
-        end
+        # TODO
+        # if input[:with_mqtt]
       end
       suspend
     end
