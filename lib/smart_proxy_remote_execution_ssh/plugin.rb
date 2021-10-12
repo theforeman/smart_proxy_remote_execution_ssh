@@ -35,11 +35,6 @@ module Proxy::RemoteExecution::Ssh
 
       Proxy::RemoteExecution::Ssh.validate!
 
-      # TODO: Move into more native methods when available
-      if settings.async_ssh
-        logger.warn('Option async_ssh is deprecated, use ssh-async mode instead.')
-      end
-
       Proxy::Dynflow::TaskLauncherRegistry.register('ssh', Proxy::Dynflow::TaskLauncher::Batch)
     end
 

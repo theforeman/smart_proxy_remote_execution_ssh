@@ -40,6 +40,20 @@ module Proxy::RemoteExecution
         unless Plugin::MODES.include? Plugin.settings.mode
           raise "Mode has to be one of #{Plugin::MODES.join(', ')}, given #{Plugin.settings.mode}"
         end
+
+        if Plugin.settings.async_ssh
+          Plugin.logger.warn('Option async_ssh is deprecated, use ssh-async mode instead.')
+
+          case Plugin.settings.mode
+          when :ssh
+            Plugin.logger.warn('Deprecated option async_ssh used together with ssh mode, switching mode to ssh-async.')
+            Plugin.settings.mode = :'ssh-async'
+          when :'async-ssh'
+            # This is a noop
+          else
+            Plugin.logger.warn('Deprecated option async_ssh used together with incompatible mode, ignoring.')
+          end
+        end
       end
 
       def validate_mqtt_settings!
