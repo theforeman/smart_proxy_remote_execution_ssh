@@ -56,29 +56,35 @@ module Proxy::RemoteExecution::Ssh::Actions
         # Client was notified or is already running, dealing with this situation
         # is only supported if mqtt is available
         # Otherwise we have to wait it out
-        # TODO
-        # if input[:with_mqtt]
+        mqtt_cancel if input[:with_mqtt]
       end
       suspend
     end
 
     def mqtt_start(otp_password)
-      payload = {
-        type: 'data',
-        message_id: SecureRandom.uuid,
-        version: 1,
-        sent: DateTime.now.iso8601,
-        directive: 'foreman',
+      payload = mqtt_payload_base.merge(
+        content: "#{input[:proxy_url]}/ssh/jobs/#{input[:job_uuid]}",
         metadata: {
+          'event': 'start',
           'job_uuid': input[:job_uuid],
           'username': execution_plan_id,
           'password': otp_password,
           'return_url': "#{input[:proxy_url]}/ssh/jobs/#{input[:job_uuid]}/update",
         },
-        content: "#{input[:proxy_url]}/ssh/jobs/#{input[:job_uuid]}",
-      }
+      )
       mqtt_notify payload
       output[:state] = :notified
+    end
+
+    def mqtt_cancel
+      cleanup
+      payload = mqtt_payload_base.merge(
+        metadata: {
+          'event': 'cancel',
+          'job_uuid': input[:job_uuid]
+        }
+      )
+      mqtt_notify payload
     end
 
     def mqtt_notify(payload)
@@ -105,6 +111,16 @@ module Proxy::RemoteExecution::Ssh::Actions
 
     def job_storage
       Proxy::RemoteExecution::Ssh.job_storage
+    end
+
+    def mqtt_payload_base
+      {
+        type: 'data',
+        message_id: SecureRandom.uuid,
+        version: 1,
+        sent: DateTime.now.iso8601,
+        directive: 'foreman'
+      }
     end
   end
 end
