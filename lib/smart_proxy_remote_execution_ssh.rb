@@ -20,7 +20,9 @@ module Proxy::RemoteExecution
           raise "Ssh public key file #{public_key_file} doesn't exist"
         end
 
+        validate_mode!
         validate_ssh_log_level!
+        validate_mqtt_settings!
       end
 
       def private_key_file
@@ -29,6 +31,35 @@ module Proxy::RemoteExecution
 
       def public_key_file
         File.expand_path("#{private_key_file}.pub")
+      end
+
+      def validate_mode!
+        Plugin.settings.mode = Plugin.settings.mode.to_sym
+
+        unless Plugin::MODES.include? Plugin.settings.mode
+          raise "Mode has to be one of #{Plugin::MODES.join(', ')}, given #{Plugin.settings.mode}"
+        end
+
+        if Plugin.settings.async_ssh
+          Plugin.logger.warn('Option async_ssh is deprecated, use ssh-async mode instead.')
+
+          case Plugin.settings.mode
+          when :ssh
+            Plugin.logger.warn('Deprecated option async_ssh used together with ssh mode, switching mode to ssh-async.')
+            Plugin.settings.mode = :'ssh-async'
+          when :'async-ssh'
+            # This is a noop
+          else
+            Plugin.logger.warn('Deprecated option async_ssh used together with incompatible mode, ignoring.')
+          end
+        end
+      end
+
+      def validate_mqtt_settings!
+        return unless Plugin.settings.mode == :'pull-mqtt'
+
+        raise 'mqtt_broker has to be set when pull-mqtt mode is used' if Plugin.settings.mqtt_broker.nil?
+        raise 'mqtt_port has to be set when pull-mqtt mode is used' if Plugin.settings.mqtt_port.nil?
       end
 
       def validate_ssh_log_level!
@@ -50,6 +81,10 @@ module Proxy::RemoteExecution
         end
 
         Plugin.settings.ssh_log_level = Plugin.settings.ssh_log_level.to_sym
+      end
+
+      def job_storage
+        @job_storage ||= Proxy::RemoteExecution::Ssh::JobStorage.new
       end
     end
   end

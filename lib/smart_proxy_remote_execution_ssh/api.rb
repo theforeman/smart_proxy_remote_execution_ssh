@@ -1,11 +1,13 @@
 require 'net/ssh'
 require 'base64'
+require 'smart_proxy_dynflow/runner'
 
 module Proxy::RemoteExecution
   module Ssh
 
     class Api < ::Sinatra::Base
       include Sinatra::Authorization::Helpers
+      include Proxy::Dynflow::Helpers
 
       get "/pubkey" do
         File.read(Ssh.public_key_file)
@@ -36,6 +38,53 @@ module Proxy::RemoteExecution
             File.open(host_file, 'w') { |f| f.write lines.join }
           end
         204
+      end
+
+      # Payload is a hash where
+      # exit_code: Integer | NilClass
+      # output: String
+      post '/jobs/:job_uuid/update' do |job_uuid|
+        do_authorize_with_ssl_client
+
+        with_authorized_job(job_uuid) do |job_record|
+          data = MultiJson.load(request.body.read)
+          notify_job(job_record, ::Proxy::Dynflow::Runner::ExternalEvent.new(data))
+        end
+      end
+
+      get '/jobs' do
+        do_authorize_with_ssl_client
+
+        MultiJson.dump(Proxy::RemoteExecution::Ssh.job_storage.job_uuids_for_host(https_cert_cn))
+      end
+
+      get "/jobs/:job_uuid" do |job_uuid|
+        do_authorize_with_ssl_client
+
+        with_authorized_job(job_uuid) do |job_record|
+          notify_job(job_record, Actions::PullScript::JobDelivered)
+          job_record[:job]
+        end
+      end
+
+      private
+
+      def notify_job(job_record, event)
+        world.event(job_record[:execution_plan_uuid], job_record[:run_step_id], event)
+      end
+
+      def with_authorized_job(uuid)
+        if (job = authorized_job(uuid))
+          yield job
+        else
+          halt 404
+        end
+      end
+
+      def authorized_job(uuid)
+        job_record = Proxy::RemoteExecution::Ssh.job_storage.find_job(uuid) || {}
+        return job_record if authorize_with_token(clear: false, task_id: job_record[:execution_plan_uuid]) ||
+                             job_record[:hostname] == https_cert_cn
       end
     end
   end
