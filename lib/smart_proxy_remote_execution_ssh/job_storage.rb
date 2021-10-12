@@ -1,4 +1,5 @@
 # lib/job_storage.rb
+require 'sequel'
 
 module Proxy::RemoteExecution::Ssh
   class JobStorage
