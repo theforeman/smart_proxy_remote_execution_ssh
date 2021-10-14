@@ -1,13 +1,5 @@
-require 'net/ssh'
 require 'fileutils'
 require 'smart_proxy_dynflow/runner/command'
-
-# Rubocop can't make up its mind what it wants
-# rubocop:disable Lint/SuppressedException, Lint/RedundantCopDisableDirective
-begin
-  require 'net/ssh/krb'
-rescue LoadError; end
-# rubocop:enable Lint/SuppressedException, Lint/RedundantCopDisableDirective
 
 module Proxy::RemoteExecution::Ssh::Runners
   class EffectiveUserMethod
@@ -233,6 +225,9 @@ module Proxy::RemoteExecution::Ssh::Runners
       @session && @cleanup_working_dirs
     end
 
+    # Creates session with two pipes - one for reading and one for
+    # writing. Similar to `Open3.popen2` method but without creating
+    # separate thread to monitor it.
     def session(command)
       @session = true
 
@@ -400,15 +395,8 @@ module Proxy::RemoteExecution::Ssh::Runners
 
     def available_authentication_methods
       methods = %w[publickey] # Always use pubkey auth as fallback
-      if settings[:kerberos_auth]
-        if defined? Net::SSH::Kerberos
-          methods << 'gssapi-with-mic'
-        else
-          @logger.warn('Kerberos authentication requested but not available')
-        end
-      end
+      methods << 'gssapi-with-mic' if settings[:kerberos_auth]
       methods.unshift('password') if @ssh_password
-
       methods
     end
   end
