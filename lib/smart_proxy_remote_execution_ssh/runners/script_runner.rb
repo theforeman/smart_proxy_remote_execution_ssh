@@ -197,9 +197,13 @@ module Proxy::RemoteExecution::Ssh::Runners
     end
 
     def close_session
-      raise "Control socket file does not exist" unless File.exist?(control_socket_file)
-      system("/usr/bin/ssh", @host, "-o", "User=#{@ssh_user}", "-o", "ControlPath=#{control_socket_file}", "-O", "exit", [:out, :err] => "/dev/null")
       @session = nil
+      raise 'Control socket file does not exist' unless File.exist?(control_socket_file)
+      r_err, w_err = IO.pipe
+      @logger.debug("Sending exit request for session #{@ssh_user}@#{@host}")
+      system("/usr/bin/ssh", @host, "-o", "User=#{@ssh_user}", "-o", "ControlPath=#{control_socket_file}", "-O", "exit", :out => "/dev/null", :err => w_err)
+      w_err.close
+      read_output_debug(r_err)
     end
 
     def close
@@ -207,7 +211,7 @@ module Proxy::RemoteExecution::Ssh::Runners
     rescue StandardError => e
       publish_exception('Error when removing remote working dir', e, false)
     ensure
-      close_session
+      close_session if @session
       FileUtils.rm_rf(local_command_dir) if Dir.exist?(local_command_dir) && @cleanup_working_dirs
     end
 
@@ -234,14 +238,16 @@ module Proxy::RemoteExecution::Ssh::Runners
 
       in_read, in_write = IO.pipe
       out_read, out_write = IO.pipe
+      err_read, err_write = IO.pipe
       args = []
       args += [{'SSHPASS' => @ssh_password}, '/usr/bin/sshpass', '-e'] if @ssh_password
       args += ['/usr/bin/ssh', @host, ssh_options(with_pty), command].flatten
-      command_pid = spawn(*args, :in => in_read, [:out, :err] => out_write)
+      command_pid = spawn(*args, :in => in_read, :out => out_write, :err => err_write)
       in_read.close
       out_write.close
+      err_write.close
 
-      return in_write, out_read, command_pid
+      return in_write, out_read, command_pid, err_read
     end
 
     def ssh_options(with_pty = false)
@@ -283,16 +289,30 @@ module Proxy::RemoteExecution::Ssh::Runners
       @started && @user_method.sent_all_data?
     end
 
+    def read_output_debug(err_io, out_io = nil)
+      stdout = ''
+      debug_str = ''
+
+      if out_io
+        stdout += out_io.read until out_io.eof? rescue
+        out_io.close
+      end
+      debug_str += err_io.read until err_io.eof? rescue
+      err_io.close
+      debug_str.lines.each { |line| @logger.debug(line.strip) }
+
+      return stdout
+    end
+
     def run_sync(command, stdin = nil)
       stdout = ''
       stderr = ''
       exit_status = nil
 
-      tx, rx, pid = session(command)
+      tx, rx, pid, err = session(command)
       tx.puts(stdin) unless stdin.nil?
       tx.close
-      stdout += rx.read until rx.eof? rescue
-      rx.close
+      stdout = read_output_debug(err, rx)
 
       exit_status = Process.wait2(pid)[1].exitstatus
       return exit_status, stdout, stderr

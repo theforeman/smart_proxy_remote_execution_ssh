@@ -1,6 +1,6 @@
 module Proxy::RemoteExecution::Ssh
   class Plugin < Proxy::Plugin
-    SSH_LOG_LEVELS = %w[debug info warn error fatal].freeze
+    SSH_LOG_LEVELS = %w[debug info error fatal].freeze
     MODES = %i[ssh async-ssh pull pull-mqtt].freeze
 
     http_rackup_path File.expand_path("http_config.ru", File.expand_path("../", __FILE__))
