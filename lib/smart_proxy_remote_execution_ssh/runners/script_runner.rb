@@ -199,11 +199,10 @@ module Proxy::RemoteExecution::Ssh::Runners
     def close_session
       @session = nil
       raise 'Control socket file does not exist' unless File.exist?(control_socket_file)
-      r_err, w_err = IO.pipe
       @logger.debug("Sending exit request for session #{@ssh_user}@#{@host}")
-      system("/usr/bin/ssh", @host, "-o", "User=#{@ssh_user}", "-o", "ControlPath=#{control_socket_file}", "-O", "exit", :out => "/dev/null", :err => w_err)
-      w_err.close
-      read_output_debug(r_err)
+      args = ['/usr/bin/ssh', @host, "-o", "User=#{@ssh_user}", "-o", "ControlPath=#{control_socket_file}", "-O", "exit"].flatten
+      *, err = session(args, in_stream: false, out_stream: false)
+      read_output_debug(err)
     end
 
     def close
@@ -230,24 +229,21 @@ module Proxy::RemoteExecution::Ssh::Runners
       @session && @cleanup_working_dirs
     end
 
-    # Creates session with two pipes - one for reading and one for
-    # writing. Similar to `Open3.popen2` method but without creating
+    # Creates session with three pipes - one for reading and two for
+    # writing. Similar to `Open3.popen3` method but without creating
     # a separate thread to monitor it.
-    def session(command, with_pty: false)
+    def session(args, in_stream = true, out_stream = true, err_stream = true)
       @session = true
 
-      in_read, in_write = IO.pipe
-      out_read, out_write = IO.pipe
-      err_read, err_write = IO.pipe
-      args = []
-      args += [{'SSHPASS' => @ssh_password}, '/usr/bin/sshpass', '-e'] if @ssh_password
-      args += ['/usr/bin/ssh', @host, ssh_options(with_pty), command].flatten
+      in_read, in_write = in_stream ? IO.pipe : '/dev/null'
+      out_read, out_write = out_stream ? IO.pipe : [nil, '/dev/null']
+      err_read, err_write = err_stream ? IO.pipe : [nil, '/dev/null']
       command_pid = spawn(*args, :in => in_read, :out => out_write, :err => err_write)
-      in_read.close
-      out_write.close
-      err_write.close
+      in_read.close if in_stream
+      out_write.close if out_stream
+      err_write.close if err_stream
 
-      return in_write, out_read, command_pid, err_read
+      return command_pid, in_write, out_read, err_read
     end
 
     def ssh_options(with_pty = false)
@@ -279,7 +275,10 @@ module Proxy::RemoteExecution::Ssh::Runners
 
       @started = false
       @user_method.reset
-      @command_in, @command_out, @command_pid = session(command, with_pty: true)
+      args = []
+      args += [{'SSHPASS' => @ssh_password}, '/usr/bin/sshpass', '-e'] if @ssh_password
+      args += ['/usr/bin/ssh', @host, ssh_options(with_pty: true), command].flatten
+      @command_pid, @command_in, @command_out = session(args, in_stream: true, out_stream: true, err_stream: false)
       @started = true
 
       return true
@@ -309,7 +308,10 @@ module Proxy::RemoteExecution::Ssh::Runners
       stderr = ''
       exit_status = nil
 
-      tx, rx, pid, err = session(command)
+      args = []
+      args += [{'SSHPASS' => @ssh_password}, '/usr/bin/sshpass', '-e'] if @ssh_password
+      args += ['/usr/bin/ssh', @host, ssh_options, command].flatten
+      pid, tx, rx, err = session(args)
       tx.puts(stdin) unless stdin.nil?
       tx.close
       stdout = read_output_debug(err, rx)
