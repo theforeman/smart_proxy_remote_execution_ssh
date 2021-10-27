@@ -232,7 +232,7 @@ module Proxy::RemoteExecution::Ssh::Runners
     # Creates session with three pipes - one for reading and two for
     # writing. Similar to `Open3.popen3` method but without creating
     # a separate thread to monitor it.
-    def session(args, in_stream = true, out_stream = true, err_stream = true)
+    def session(args, in_stream: true, out_stream: true, err_stream: true)
       @session = true
 
       in_read, in_write = in_stream ? IO.pipe : '/dev/null'
@@ -267,6 +267,13 @@ module Proxy::RemoteExecution::Ssh::Runners
       Proxy::RemoteExecution::Ssh::Plugin.settings
     end
 
+    def get_args(command, with_pty = false)
+      args = []
+      args = [{'SSHPASS' => @ssh_password}, '/usr/bin/sshpass', '-e'] if @ssh_password
+      args = [{'SSHPASS' => @key_passphrase}, '/usr/bin/sshpass', '-e'] if @key_passphrase
+      args += ['/usr/bin/ssh', @host, ssh_options(with_pty), command].flatten
+    end
+
     # Initiates run of the remote command and yields the data when
     # available. The yielding doesn't happen automatically, but as
     # part of calling the `refresh` method.
@@ -275,10 +282,7 @@ module Proxy::RemoteExecution::Ssh::Runners
 
       @started = false
       @user_method.reset
-      args = []
-      args += [{'SSHPASS' => @ssh_password}, '/usr/bin/sshpass', '-e'] if @ssh_password
-      args += ['/usr/bin/ssh', @host, ssh_options(with_pty: true), command].flatten
-      @command_pid, @command_in, @command_out = session(args, in_stream: true, out_stream: true, err_stream: false)
+      @command_pid, @command_in, @command_out = session(get_args(command, with_pty: true), err_stream: false)
       @started = true
 
       return true
@@ -308,10 +312,7 @@ module Proxy::RemoteExecution::Ssh::Runners
       stderr = ''
       exit_status = nil
 
-      args = []
-      args += [{'SSHPASS' => @ssh_password}, '/usr/bin/sshpass', '-e'] if @ssh_password
-      args += ['/usr/bin/ssh', @host, ssh_options, command].flatten
-      pid, tx, rx, err = session(args)
+      pid, tx, rx, err = session(get_args(command))
       tx.puts(stdin) unless stdin.nil?
       tx.close
       stdout = read_output_debug(err, rx)
