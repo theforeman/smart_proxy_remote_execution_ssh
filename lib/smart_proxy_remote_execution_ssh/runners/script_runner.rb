@@ -198,9 +198,9 @@ module Proxy::RemoteExecution::Ssh::Runners
 
     def close_session
       @session = nil
-      raise 'Control socket file does not exist' unless File.exist?(control_socket_file)
+      raise 'Control socket file does not exist' unless File.exist?(local_command_file("socket"))
       @logger.debug("Sending exit request for session #{@ssh_user}@#{@host}")
-      args = ['/usr/bin/ssh', @host, "-o", "User=#{@ssh_user}", "-o", "ControlPath=#{control_socket_file}", "-O", "exit"].flatten
+      args = ['/usr/bin/ssh', @host, "-o", "User=#{@ssh_user}", "-o", "ControlPath=#{local_command_file("socket")}", "-O", "exit"].flatten
       *, err = session(args, in_stream: false, out_stream: false)
       read_output_debug(err)
     end
@@ -259,7 +259,7 @@ module Proxy::RemoteExecution::Ssh::Runners
       ssh_options << "-o NumberOfPasswordPrompts=1"
       ssh_options << "-o LogLevel=#{settings[:ssh_log_level]}"
       ssh_options << "-o ControlMaster=auto"
-      ssh_options << "-o ControlPath=#{control_socket_file}"
+      ssh_options << "-o ControlPath=#{local_command_file("socket")}"
       ssh_options << "-o ControlPersist=yes"
     end
 
@@ -267,10 +267,17 @@ module Proxy::RemoteExecution::Ssh::Runners
       Proxy::RemoteExecution::Ssh::Plugin.settings
     end
 
+    def create_fd(sshpass)
+      fd = IO.sysopen(local_command_file("authentication_keys"), 'w+')
+      io = IO.new(fd)
+      io << sshpass
+      fd
+    end
+
     def get_args(command, with_pty = false)
       args = []
-      args = [{'SSHPASS' => @ssh_password}, '/usr/bin/sshpass', '-e'] if @ssh_password
-      args = [{'SSHPASS' => @key_passphrase}, '/usr/bin/sshpass', '-e'] if @key_passphrase
+      args += ['/usr/bin/sshpass', '-d', create_fd(@ssh_password).to_s] if @ssh_password
+      args += ['/usr/bin/sshpass', '-d', create_fd(@key_passphrase).to_s] if @key_passphrase
       args += ['/usr/bin/ssh', @host, ssh_options(with_pty), command].flatten
     end
 
@@ -334,7 +341,7 @@ module Proxy::RemoteExecution::Ssh::Runners
     end
 
     def local_command_file(filename)
-      File.join(local_command_dir, filename)
+      File.join(ensure_local_directory(local_command_dir), filename)
     end
 
     def remote_command_dir
@@ -343,10 +350,6 @@ module Proxy::RemoteExecution::Ssh::Runners
 
     def remote_command_file(filename)
       File.join(remote_command_dir, filename)
-    end
-
-    def control_socket_file
-      File.join(ensure_local_directory(local_command_dir), "socket")
     end
 
     def ensure_local_directory(path)
