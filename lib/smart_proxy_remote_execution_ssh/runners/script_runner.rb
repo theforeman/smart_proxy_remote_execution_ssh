@@ -238,7 +238,7 @@ module Proxy::RemoteExecution::Ssh::Runners
       in_read, in_write = in_stream ? IO.pipe : '/dev/null'
       out_read, out_write = out_stream ? IO.pipe : [nil, '/dev/null']
       err_read, err_write = err_stream ? IO.pipe : [nil, '/dev/null']
-      command_pid = spawn(*args, :in => in_read, :out => out_write, :err => err_write, :close_others => false)
+      command_pid = spawn(*args, :in => in_read, :out => out_write, :err => err_write)
       in_read.close if in_stream
       out_write.close if out_stream
       err_write.close if err_stream
@@ -267,17 +267,10 @@ module Proxy::RemoteExecution::Ssh::Runners
       Proxy::RemoteExecution::Ssh::Plugin.settings
     end
 
-    def create_fd(sshpass)
-      io_r, io_w = IO.pipe
-      io_w << sshpass
-      io_w.close
-      io_r
-    end
-
     def get_args(command, with_pty = false)
       args = []
-      args += ['/usr/bin/sshpass', '-d', create_fd(@ssh_password).fileno.to_s] if @ssh_password
-      args += ['/usr/bin/sshpass', '-P', 'passphrase', '-d', create_fd(@key_passphrase).fileno.to_s] if @key_passphrase
+      args += ['/usr/bin/sshpass', '-f', write_command_file_locally("password", @ssh_password).to_s] if @ssh_password
+      args += ['/usr/bin/sshpass', '-P', 'passphrase', '-f', write_command_file_locally("passphrase", @key_passphrase).to_s] if @key_passphrase
       args += ['/usr/bin/ssh', @host, ssh_options(with_pty), command].flatten
     end
 
