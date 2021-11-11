@@ -269,8 +269,8 @@ module Proxy::RemoteExecution::Ssh::Runners
 
     def get_args(command, with_pty = false)
       args = []
+      args = [{'SSHPASS' => @key_passphrase}, '/usr/bin/sshpass', '-P', 'passphrase', '-e'] if @key_passphrase
       args = [{'SSHPASS' => @ssh_password}, '/usr/bin/sshpass', '-e'] if @ssh_password
-      args = [{'SSHPASS' => @key_passphrase}, '/usr/bin/sshpass', '-e'] if @key_passphrase
       args += ['/usr/bin/ssh', @host, ssh_options(with_pty), command].flatten
     end
 
