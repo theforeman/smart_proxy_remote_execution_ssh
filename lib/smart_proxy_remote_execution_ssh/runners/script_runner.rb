@@ -304,19 +304,14 @@ module Proxy::RemoteExecution::Ssh::Runners
       err_io.close
       debug_str.lines.each { |line| @logger.debug(line.strip) }
 
-      return stdout
+      return stdout, debug_str
     end
 
     def run_sync(command, stdin = nil)
-      stdout = ''
-      stderr = ''
-      exit_status = nil
-
       pid, tx, rx, err = session(get_args(command))
       tx.puts(stdin) unless stdin.nil?
       tx.close
-      stdout = read_output_debug(err, rx)
-
+      stdout, stderr = read_output_debug(err, rx)
       exit_status = Process.wait2(pid)[1].exitstatus
       return exit_status, stdout, stderr
     end
