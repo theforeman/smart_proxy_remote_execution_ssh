@@ -13,8 +13,8 @@
 # (1 second for regular, 60 seconds with async_ssh enabled)
 # :runner_refresh_interval:
 
-# Defines the verbosity of logging coming from Net::SSH
-# one of :debug, :info, :warn, :error, :fatal
+# Defines the verbosity of logging coming from ssh command
+# one of :debug, :info, :error, :fatal
 # must be lower than general log level
 # :ssh_log_level: fatal
 

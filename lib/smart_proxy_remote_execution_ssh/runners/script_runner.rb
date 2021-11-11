@@ -1,12 +1,5 @@
-require 'net/ssh'
 require 'fileutils'
-
-# Rubocop can't make up its mind what it wants
-# rubocop:disable Lint/SuppressedException, Lint/RedundantCopDisableDirective
-begin
-  require 'net/ssh/krb'
-rescue LoadError; end
-# rubocop:enable Lint/SuppressedException, Lint/RedundantCopDisableDirective
+require 'smart_proxy_dynflow/runner/command'
 
 module Proxy::RemoteExecution::Ssh::Runners
   class EffectiveUserMethod
@@ -21,7 +14,7 @@ module Proxy::RemoteExecution::Ssh::Runners
 
     def on_data(received_data, ssh_channel)
       if received_data.match(login_prompt)
-        ssh_channel.send_data(effective_user_password + "\n")
+        ssh_channel.puts(effective_user_password)
         @password_sent = true
       end
     end
@@ -97,13 +90,11 @@ module Proxy::RemoteExecution::Ssh::Runners
 
   # rubocop:disable Metrics/ClassLength
   class ScriptRunner < Proxy::Dynflow::Runner::Base
+    include Proxy::Dynflow::Runner::Command
     attr_reader :execution_timeout_interval
 
     EXPECTED_POWER_ACTION_MESSAGES = ['restart host', 'shutdown host'].freeze
     DEFAULT_REFRESH_INTERVAL = 1
-    MAX_PROCESS_RETRIES = 4
-    VERIFY_HOST_KEY = Gem::Version.create(Net::SSH::Version::STRING) < Gem::Version.create('5.0.0') ||
-                      :accept_new_or_local_tunnel
 
     def initialize(options, user_method, suspended_action: nil)
       super suspended_action: suspended_action
@@ -155,7 +146,7 @@ module Proxy::RemoteExecution::Ssh::Runners
       logger.debug("executing script:\n#{indent_multiline(script)}")
       trigger(script)
     rescue StandardError, NotImplementedError => e
-      logger.error("error while initalizing command #{e.class} #{e.message}:\n #{e.backtrace.join("\n")}")
+      logger.error("error while initializing command #{e.class} #{e.message}:\n #{e.backtrace.join("\n")}")
       publish_exception('Error initializing command', e)
     end
 
@@ -181,12 +172,7 @@ module Proxy::RemoteExecution::Ssh::Runners
 
     def refresh
       return if @session.nil?
-
-      with_retries do
-        with_disconnect_handling do
-          @session.process(0)
-        end
-      end
+      super
     ensure
       check_expecting_disconnect
     end
@@ -210,32 +196,13 @@ module Proxy::RemoteExecution::Ssh::Runners
       execution_timeout_interval
     end
 
-    def with_retries
-      tries = 0
-      begin
-        yield
-      rescue StandardError => e
-        logger.error("Unexpected error: #{e.class} #{e.message}\n #{e.backtrace.join("\n")}")
-        tries += 1
-        if tries <= MAX_PROCESS_RETRIES
-          logger.error('Retrying')
-          retry
-        else
-          publish_exception('Unexpected error', e)
-        end
-      end
-    end
-
-    def with_disconnect_handling
-      yield
-    rescue IOError, Net::SSH::Disconnect => e
-      @session.shutdown!
-      check_expecting_disconnect
-      if @expecting_disconnect
-        publish_exit_status(0)
-      else
-        publish_exception('Unexpected disconnect', e)
-      end
+    def close_session
+      @session = nil
+      raise 'Control socket file does not exist' unless File.exist?(local_command_file("socket"))
+      @logger.debug("Sending exit request for session #{@ssh_user}@#{@host}")
+      args = ['/usr/bin/ssh', @host, "-o", "User=#{@ssh_user}", "-o", "ControlPath=#{local_command_file("socket")}", "-O", "exit"].flatten
+      *, err = session(args, in_stream: false, out_stream: false)
+      read_output_debug(err)
     end
 
     def close
@@ -243,12 +210,13 @@ module Proxy::RemoteExecution::Ssh::Runners
     rescue StandardError => e
       publish_exception('Error when removing remote working dir', e, false)
     ensure
-      @session.close if @session && !@session.closed?
+      close_session if @session
       FileUtils.rm_rf(local_command_dir) if Dir.exist?(local_command_dir) && @cleanup_working_dirs
     end
 
     def publish_data(data, type)
-      super(data.force_encoding('UTF-8'), type)
+      super(data.force_encoding('UTF-8'), type) unless @user_method.filter_password?(data)
+      @user_method.on_data(data, @command_in)
     end
 
     private
@@ -258,36 +226,52 @@ module Proxy::RemoteExecution::Ssh::Runners
     end
 
     def should_cleanup?
-      @session && !@session.closed? && @cleanup_working_dirs
+      @session && @cleanup_working_dirs
     end
 
-    def session
-      @session ||= begin
-                     @logger.debug("opening session to #{@ssh_user}@#{@host}")
-                     Net::SSH.start(@host, @ssh_user, ssh_options)
-                   end
+    # Creates session with three pipes - one for reading and two for
+    # writing. Similar to `Open3.popen3` method but without creating
+    # a separate thread to monitor it.
+    def session(args, in_stream: true, out_stream: true, err_stream: true)
+      @session = true
+
+      in_read, in_write = in_stream ? IO.pipe : '/dev/null'
+      out_read, out_write = out_stream ? IO.pipe : [nil, '/dev/null']
+      err_read, err_write = err_stream ? IO.pipe : [nil, '/dev/null']
+      command_pid = spawn(*args, :in => in_read, :out => out_write, :err => err_write)
+      in_read.close if in_stream
+      out_write.close if out_stream
+      err_write.close if err_stream
+
+      return command_pid, in_write, out_read, err_read
     end
 
-    def ssh_options
-      ssh_options = {}
-      ssh_options[:port] = @ssh_port if @ssh_port
-      ssh_options[:keys] = [@client_private_key_file] if @client_private_key_file
-      ssh_options[:password] = @ssh_password if @ssh_password
-      ssh_options[:passphrase] = @key_passphrase if @key_passphrase
-      ssh_options[:keys_only] = true
-      # if the host public key is contained in the known_hosts_file,
-      # verify it, otherwise, if missing, import it and continue
-      ssh_options[:verify_host_key] = VERIFY_HOST_KEY
-      ssh_options[:auth_methods] = available_authentication_methods
-      ssh_options[:user_known_hosts_file] = prepare_known_hosts if @host_public_key
-      ssh_options[:number_of_password_prompts] = 1
-      ssh_options[:verbose] = settings[:ssh_log_level]
-      ssh_options[:logger] = Proxy::RemoteExecution::Ssh::LogFilter.new(Proxy::Dynflow::Log.instance)
-      return ssh_options
+    def ssh_options(with_pty = false)
+      ssh_options = []
+      ssh_options << "-tt" if with_pty
+      ssh_options << "-o User=#{@ssh_user}"
+      ssh_options << "-o Port=#{@ssh_port}" if @ssh_port
+      ssh_options << "-o IdentityFile=#{@client_private_key_file}" if @client_private_key_file
+      ssh_options << "-o IdentitiesOnly=yes"
+      ssh_options << "-o StrictHostKeyChecking=no"
+      ssh_options << "-o PreferredAuthentications=#{available_authentication_methods.join(',')}"
+      ssh_options << "-o UserKnownHostsFile=#{prepare_known_hosts}" if @host_public_key
+      ssh_options << "-o NumberOfPasswordPrompts=1"
+      ssh_options << "-o LogLevel=#{settings[:ssh_log_level]}"
+      ssh_options << "-o ControlMaster=auto"
+      ssh_options << "-o ControlPath=#{local_command_file("socket")}"
+      ssh_options << "-o ControlPersist=yes"
     end
 
     def settings
       Proxy::RemoteExecution::Ssh::Plugin.settings
+    end
+
+    def get_args(command, with_pty = false)
+      args = []
+      args = [{'SSHPASS' => @key_passphrase}, '/usr/bin/sshpass', '-P', 'passphrase', '-e'] if @key_passphrase
+      args = [{'SSHPASS' => @ssh_password}, '/usr/bin/sshpass', '-e'] if @ssh_password
+      args += ['/usr/bin/ssh', @host, ssh_options(with_pty), command].flatten
     end
 
     # Initiates run of the remote command and yields the data when
@@ -298,30 +282,9 @@ module Proxy::RemoteExecution::Ssh::Runners
 
       @started = false
       @user_method.reset
+      @command_pid, @command_in, @command_out = session(get_args(command, with_pty: true), err_stream: false)
+      @started = true
 
-      session.open_channel do |channel|
-        channel.request_pty
-        channel.on_data do |ch, data|
-          publish_data(data, 'stdout') unless @user_method.filter_password?(data)
-          @user_method.on_data(data, ch)
-        end
-        channel.on_extended_data { |ch, type, data| publish_data(data, 'stderr') }
-        # standard exit of the command
-        channel.on_request('exit-status') { |ch, data| publish_exit_status(data.read_long) }
-        # on signal: sending the signal value (such as 'TERM')
-        channel.on_request('exit-signal') do |ch, data|
-          publish_exit_status(data.read_string)
-          ch.close
-          # wait for the channel to finish so that we know at the end
-          # that the session is inactive
-          ch.wait
-        end
-        channel.exec(command) do |_, success|
-          @started = true
-          raise('Error initializing command') unless success
-        end
-      end
-      session.process(0) { !run_started? }
       return true
     end
 
@@ -329,36 +292,27 @@ module Proxy::RemoteExecution::Ssh::Runners
       @started && @user_method.sent_all_data?
     end
 
-    def run_sync(command, stdin = nil)
+    def read_output_debug(err_io, out_io = nil)
       stdout = ''
-      stderr = ''
-      exit_status = nil
-      started = false
+      debug_str = ''
 
-      channel = session.open_channel do |ch|
-        ch.on_data do |c, data|
-          stdout.concat(data)
-        end
-        ch.on_extended_data { |_, _, data| stderr.concat(data) }
-        ch.on_request('exit-status') { |_, data| exit_status = data.read_long }
-        # Send data to stdin if we have some
-        ch.send_data(stdin) unless stdin.nil?
-        # on signal: sending the signal value (such as 'TERM')
-        ch.on_request('exit-signal') do |_, data|
-          exit_status = data.read_string
-          ch.close
-          ch.wait
-        end
-        ch.exec command do |_, success|
-          raise 'could not execute command' unless success
-
-          started = true
-        end
+      if out_io
+        stdout += out_io.read until out_io.eof? rescue
+        out_io.close
       end
-      session.process(0) { !started }
-      # Closing the channel without sending any data gives us SIGPIPE
-      channel.close unless stdin.nil?
-      channel.wait
+      debug_str += err_io.read until err_io.eof? rescue
+      err_io.close
+      debug_str.lines.each { |line| @logger.debug(line.strip) }
+
+      return stdout, debug_str
+    end
+
+    def run_sync(command, stdin = nil)
+      pid, tx, rx, err = session(get_args(command))
+      tx.puts(stdin) unless stdin.nil?
+      tx.close
+      stdout, stderr = read_output_debug(err, rx)
+      exit_status = Process.wait2(pid)[1].exitstatus
       return exit_status, stdout, stderr
     end
 
@@ -375,7 +329,7 @@ module Proxy::RemoteExecution::Ssh::Runners
     end
 
     def local_command_file(filename)
-      File.join(local_command_dir, filename)
+      File.join(ensure_local_directory(local_command_dir), filename)
     end
 
     def remote_command_dir
@@ -457,15 +411,8 @@ module Proxy::RemoteExecution::Ssh::Runners
 
     def available_authentication_methods
       methods = %w[publickey] # Always use pubkey auth as fallback
-      if settings[:kerberos_auth]
-        if defined? Net::SSH::Kerberos
-          methods << 'gssapi-with-mic'
-        else
-          @logger.warn('Kerberos authentication requested but not available')
-        end
-      end
+      methods << 'gssapi-with-mic' if settings[:kerberos_auth]
       methods.unshift('password') if @ssh_password
-
       methods
     end
   end
