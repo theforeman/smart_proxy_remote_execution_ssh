@@ -11,6 +11,8 @@ module Proxy::RemoteExecution
 
       get "/pubkey" do
         File.read(Ssh.public_key_file)
+      rescue Errno::ENOENT
+        halt 404
       end
 
       post "/session" do
