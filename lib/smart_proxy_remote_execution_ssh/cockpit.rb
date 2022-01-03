@@ -176,7 +176,7 @@ module Proxy::RemoteExecution
         inner_system_ssh_loop out_buf, err_buf, in_buf, pid
       end
 
-      def inner_system_ssh_loop2(out_buf, err_buf, in_buf, pid)
+      def inner_system_ssh_loop(out_buf, err_buf, in_buf, pid)
         err_buf_raw = ''
         readers = [buf_socket, out_buf, err_buf]
         loop do
@@ -202,7 +202,7 @@ module Proxy::RemoteExecution
       rescue # rubocop:disable Style/RescueStandardError
         send_error(400, err_buf_raw) unless @started
       ensure
-        [out_buff, err_buf, in_buf].each(&:close)
+        [out_buf, err_buf, in_buf].each(&:close)
       end
 
       def proxy_data(out_buf, in_buf)
