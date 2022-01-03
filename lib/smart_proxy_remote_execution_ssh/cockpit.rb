@@ -164,6 +164,8 @@ module Proxy::RemoteExecution
         out_read, out_write = IO.pipe
         err_read, err_write = IO.pipe
 
+        # Force the script runner to initialize its logger
+        script_runner.logger
         pid = spawn(*script_runner.send(:get_args, command), :in => in_read, :out => out_write, :err => err_write)
         [in_read, out_write, err_write].each(&:close)
 
@@ -185,6 +187,9 @@ module Proxy::RemoteExecution
           (ready_readers || []).each { |reader| reader.close if reader.fill.zero? }
 
           proxy_data(out_buf, in_buf)
+          if buf_socket.closed?
+            script_runner.close_session
+          end
 
           if out_buf.closed?
             code = Process.wait2(pid).last.exitstatus
