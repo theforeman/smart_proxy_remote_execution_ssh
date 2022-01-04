@@ -16,7 +16,7 @@
 # Defines the verbosity of logging coming from ssh command
 # one of :debug, :info, :error, :fatal
 # must be lower than general log level
-# :ssh_log_level: fatal
+# :ssh_log_level: error
 
 # Remove working directories on job completion
 # :cleanup_working_dirs: true

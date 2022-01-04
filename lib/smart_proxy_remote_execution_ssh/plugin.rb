@@ -14,7 +14,7 @@ module Proxy::RemoteExecution::Ssh
                      :kerberos_auth           => false,
                      # When set to nil, makes REX use the runner's default interval
                      # :runner_refresh_interval => nil,
-                     :ssh_log_level           => :fatal,
+                     :ssh_log_level           => :error,
                      :cleanup_working_dirs    => true,
                      # :mqtt_broker             => nil,
                      # :mqtt_port               => nil,
