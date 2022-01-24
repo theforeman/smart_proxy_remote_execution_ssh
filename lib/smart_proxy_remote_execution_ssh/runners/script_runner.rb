@@ -201,8 +201,10 @@ module Proxy::RemoteExecution::Ssh::Runners
       raise 'Control socket file does not exist' unless File.exist?(local_command_file("socket"))
       @logger.debug("Sending exit request for session #{@ssh_user}@#{@host}")
       args = ['/usr/bin/ssh', @host, "-o", "User=#{@ssh_user}", "-o", "ControlPath=#{local_command_file("socket")}", "-O", "exit"].flatten
-      *, err = session(args, in_stream: false, out_stream: false)
-      read_output_debug(err)
+      pid, *, err = session(args, in_stream: false, out_stream: false)
+      result = read_output_debug(err)
+      Process.wait(pid)
+      result
     end
 
     def close
