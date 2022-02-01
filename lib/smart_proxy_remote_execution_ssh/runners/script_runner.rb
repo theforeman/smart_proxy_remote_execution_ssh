@@ -142,6 +142,7 @@ module Proxy::RemoteExecution::Ssh::Runners
 
     def start
       Proxy::RemoteExecution::Utils.prune_known_hosts!(@host, @ssh_port, logger) if @first_execution
+      establish_connection
       prepare_start
       script = initialization_script
       logger.debug("executing script:\n#{indent_multiline(script)}")
@@ -153,6 +154,15 @@ module Proxy::RemoteExecution::Ssh::Runners
 
     def trigger(*args)
       run_async(*args)
+    end
+
+    def establish_connection
+      status, stdout, stderr = run_sync(['-f', '-N'])
+      if status != 0
+        publish_data(stderr, 'debug') unless stderr.empty?
+        publish_data(stdout, 'stdout') unless stdout.empty?
+        raise "Unable to establish connection to remote host"
+      end
     end
 
     def prepare_start
