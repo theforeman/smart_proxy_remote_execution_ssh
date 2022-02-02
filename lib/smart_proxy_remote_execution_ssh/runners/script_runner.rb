@@ -1,5 +1,6 @@
 require 'fileutils'
-require 'smart_proxy_dynflow/runner/command'
+require 'smart_proxy_dynflow/runner/process_manager_command'
+require 'smart_proxy_dynflow/process_manager'
 
 module Proxy::RemoteExecution::Ssh::Runners
   class EffectiveUserMethod
@@ -12,9 +13,9 @@ module Proxy::RemoteExecution::Ssh::Runners
       @password_sent = false
     end
 
-    def on_data(received_data, ssh_channel)
+    def on_data(received_data, io_buffer)
       if received_data.match(login_prompt)
-        ssh_channel.puts(effective_user_password)
+        io_buffer.add_data(effective_user_password + "\n")
         @password_sent = true
       end
     end
@@ -90,7 +91,7 @@ module Proxy::RemoteExecution::Ssh::Runners
 
   # rubocop:disable Metrics/ClassLength
   class ScriptRunner < Proxy::Dynflow::Runner::Base
-    include Proxy::Dynflow::Runner::Command
+    include Proxy::Dynflow::Runner::ProcessManagerCommand
     attr_reader :execution_timeout_interval
 
     EXPECTED_POWER_ACTION_MESSAGES = ['restart host', 'shutdown host'].freeze
@@ -176,14 +177,14 @@ module Proxy::RemoteExecution::Ssh::Runners
     end
 
     def refresh
-      return if @session.nil?
+      return if @process_manager.nil?
       super
     ensure
       check_expecting_disconnect
     end
 
     def kill
-      if @session
+      if @process_manager&.started?
         run_sync("pkill -P $(cat #{@pid_path})")
       else
         logger.debug('connection closed')
@@ -202,14 +203,13 @@ module Proxy::RemoteExecution::Ssh::Runners
     end
 
     def close_session
-      @session = nil
       raise 'Control socket file does not exist' unless File.exist?(local_command_file("socket"))
       @logger.debug("Sending exit request for session #{@ssh_user}@#{@host}")
-      args = ['/usr/bin/ssh', @host, "-o", "User=#{@ssh_user}", "-o", "ControlPath=#{local_command_file("socket")}", "-O", "exit"].flatten
-      pid, *, err = session(args, in_stream: false, out_stream: false)
-      result = read_output_debug(err)
-      Process.wait(pid)
-      result
+      args = ['/usr/bin/ssh', @host, "-o", "ControlPath=#{local_command_file("socket")}", "-O", "exit"].flatten
+      pm = Proxy::Dynflow::ProcessManager.new(args)
+      pm.on_stdout { |data| @logger.debug "[close_session]: #{data.chomp}"; data }
+      pm.on_stderr { |data| @logger.debug "[close_session]: #{data.chomp}"; data }
+      pm.run!
     end
 
     def close
@@ -217,13 +217,13 @@ module Proxy::RemoteExecution::Ssh::Runners
     rescue StandardError => e
       publish_exception('Error when removing remote working dir', e, false)
     ensure
-      close_session if @session
+      close_session if @process_manager
       FileUtils.rm_rf(local_command_dir) if Dir.exist?(local_command_dir) && @cleanup_working_dirs
     end
 
     def publish_data(data, type)
       super(data.force_encoding('UTF-8'), type) unless @user_method.filter_password?(data)
-      @user_method.on_data(data, @command_in)
+      @user_method.on_data(data, @process_manager.stdin)
     end
 
     private
@@ -233,24 +233,7 @@ module Proxy::RemoteExecution::Ssh::Runners
     end
 
     def should_cleanup?
-      @session && @cleanup_working_dirs
-    end
-
-    # Creates session with three pipes - one for reading and two for
-    # writing. Similar to `Open3.popen3` method but without creating
-    # a separate thread to monitor it.
-    def session(args, in_stream: true, out_stream: true, err_stream: true)
-      @session = true
-
-      in_read, in_write = in_stream ? IO.pipe : '/dev/null'
-      out_read, out_write = out_stream ? IO.pipe : [nil, '/dev/null']
-      err_read, err_write = err_stream ? IO.pipe : [nil, '/dev/null']
-      command_pid = spawn(*args, :in => in_read, :out => out_write, :err => err_write)
-      in_read.close if in_stream
-      out_write.close if out_stream
-      err_write.close if err_stream
-
-      return command_pid, in_write, out_read, err_read
+      @process_manager && @cleanup_working_dirs
     end
 
     def ssh_options(with_pty = false)
@@ -285,42 +268,27 @@ module Proxy::RemoteExecution::Ssh::Runners
     # available. The yielding doesn't happen automatically, but as
     # part of calling the `refresh` method.
     def run_async(command)
-      raise 'Async command already in progress' if @started
+      raise 'Async command already in progress' if @process_manager&.started?
 
-      @started = false
       @user_method.reset
-      @command_pid, @command_in, @command_out = session(get_args(command, with_pty: true), err_stream: false)
-      @started = true
+      initialize_command(*get_args(command, with_pty: true))
 
-      return true
+      true
     end
 
     def run_started?
-      @started && @user_method.sent_all_data?
-    end
-
-    def read_output_debug(err_io, out_io = nil)
-      stdout = ''
-      debug_str = ''
-
-      if out_io
-        stdout += out_io.read until out_io.eof? rescue
-        out_io.close
-      end
-      debug_str += err_io.read until err_io.eof? rescue
-      err_io.close
-      debug_str.lines.each { |line| @logger.debug(line.strip) }
-
-      return stdout, debug_str
+      @process_manager&.started? && @user_method.sent_all_data?
     end
 
     def run_sync(command, stdin = nil)
-      pid, tx, rx, err = session(get_args(command))
-      tx.puts(stdin) unless stdin.nil?
-      tx.close
-      stdout, stderr = read_output_debug(err, rx)
-      exit_status = Process.wait2(pid)[1].exitstatus
-      return exit_status, stdout, stderr
+      pm = Proxy::Dynflow::ProcessManager.new(get_args(command))
+      pm.start!
+      unless pm.status
+        pm.stdin.io.puts(stdin) if stdin
+        pm.stdin.io.close
+        pm.run!
+      end
+      pm
     end
 
     def prepare_known_hosts
@@ -370,11 +338,11 @@ module Proxy::RemoteExecution::Ssh::Runners
       command = "tee #{path} >/dev/null && chmod #{permissions} #{path}"
 
       @logger.debug("Sending data to #{path} on remote host:\n#{data}")
-      status, _out, err = run_sync(command, data)
+      pm = run_sync(command, data)
 
-      @logger.warn("Output on stderr while uploading #{path}:\n#{err}") unless err.empty?
-      if status != 0
-        raise "Unable to upload file to #{path} on remote system: exit code: #{status}"
+      @logger.warn("Output on stderr while uploading #{path}:\n#{pm.stderr.to_s.chomp}") unless pm.stderr.empty?
+      if pm.status != 0
+        raise "Unable to upload file to #{path} on remote system: exit code: #{pm.status}"
       end
 
       path
@@ -387,9 +355,9 @@ module Proxy::RemoteExecution::Ssh::Runners
     end
 
     def ensure_remote_directory(path)
-      exit_code, _output, err = run_sync("mkdir -p #{path}")
-      if exit_code != 0
-        raise "Unable to create directory on remote system #{path}: exit code: #{exit_code}\n #{err}"
+      pm = run_sync("mkdir -p #{path}")
+      if pm.status != 0
+        raise "Unable to create directory on remote system #{path}: exit code: #{pm.status}\n #{pm.stderr.to_s.chomp}"
       end
     end
 
