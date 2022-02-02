@@ -49,14 +49,13 @@ module Proxy::RemoteExecution::Ssh::Runners
     end
 
     def refresh
-      err = output = nil
       begin
-        _, output, err = run_sync("#{@user_method.cli_command_prefix} #{@retrieval_script}")
+        pm = run_sync("#{@user_method.cli_command_prefix} #{@retrieval_script}")
       rescue StandardError => e
         @logger.info("Error while connecting to the remote host on refresh: #{e.message}")
       end
 
-      process_retrieved_data(output, err)
+      process_retrieved_data(pm.stdout.to_s.chomp, pm.stderr.to_s.chomp)
     ensure
       destroy_session
     end
@@ -131,7 +130,11 @@ module Proxy::RemoteExecution::Ssh::Runners
     end
 
     def cleanup
-      run_sync("rm -rf #{remote_command_dir}") if @cleanup_working_dirs
+      if @cleanup_working_dirs
+        assert_remote_command("rm -rf #{remote_command_dir}",
+                              publish: true,
+                              error: "Unable to remove working directory #{remote_command_dir} on remote system, exit code: %{exit_code}")
+      end
     end
 
     def destroy_session

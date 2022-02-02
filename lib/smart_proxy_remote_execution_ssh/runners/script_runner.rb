@@ -143,6 +143,7 @@ module Proxy::RemoteExecution::Ssh::Runners
     def start
       Proxy::RemoteExecution::Utils.prune_known_hosts!(@host, @ssh_port, logger) if @first_execution
       establish_connection
+      preflight_checks
       prepare_start
       script = initialization_script
       logger.debug("executing script:\n#{indent_multiline(script)}")
@@ -156,13 +157,30 @@ module Proxy::RemoteExecution::Ssh::Runners
       run_async(*args)
     end
 
+    def preflight_checks
+      assert_remote_command(cp_script_to_remote("#!/bin/sh\nexec true", 'test'),
+        publish: true,
+        error: 'Failed to execute script on remote machine, exit code %{exit_code}.'
+      )
+      unless @user_method.is_a? NoopUserMethod
+        path = cp_script_to_remote("#!/bin/sh\nexec #{@user_method.cli_command_prefix} true", 'effective-user-test')
+        assert_remote_command(path,
+                              error: 'Failed to change to effective user, exit code %{exit_code}',
+                              publish: true,
+                              tty: true,
+                              close_stdin: false)
+      end
+    end
+
     def establish_connection
       # run_sync ['-f', '-N'] would be cleaner, but ssh does not close its
       # stderr which trips up the process manager which expects all FDs to be
       # closed
-      if run_sync(['true'], publish: true).status != 0
-        raise "Unable to establish connection to remote host"
-      end
+      assert_remote_command(
+        'true',
+        publish: true,
+        error: 'Failed to establish connection to remote host, exit code %{exit_code}'
+      )
     end
 
     def prepare_start
@@ -231,9 +249,10 @@ module Proxy::RemoteExecution::Ssh::Runners
       FileUtils.rm_rf(local_command_dir) if Dir.exist?(local_command_dir) && @cleanup_working_dirs
     end
 
-    def publish_data(data, type)
+    def publish_data(data, type, pm = nil)
+      pm ||= @process_manager
       super(data.force_encoding('UTF-8'), type) unless @user_method.filter_password?(data)
-      @user_method.on_data(data, @process_manager.stdin) if @process_manager
+      @user_method.on_data(data, pm.stdin) if pm
     end
 
     private
@@ -281,7 +300,7 @@ module Proxy::RemoteExecution::Ssh::Runners
       raise 'Async command already in progress' if @process_manager&.started?
 
       @user_method.reset
-      initialize_command(*get_args(command, with_pty: true))
+      initialize_command(*get_args(command, true))
 
       true
     end
@@ -290,13 +309,16 @@ module Proxy::RemoteExecution::Ssh::Runners
       @process_manager&.started? && @user_method.sent_all_data?
     end
 
-    def run_sync(command, stdin: nil, publish: false)
-      pm = Proxy::Dynflow::ProcessManager.new(get_args(command))
-      set_process_manager_callbacks(pm) if publish
+    def run_sync(command, stdin: nil, publish: false, close_stdin: true, tty: false)
+      pm = Proxy::Dynflow::ProcessManager.new(get_args(command, tty))
+      if publish
+        pm.on_stdout { |data| publish_data(data, 'stdout', pm); '' }
+        pm.on_stderr { |data| publish_data(data, 'stderr', pm); '' }
+      end
       pm.start!
       unless pm.status
         pm.stdin.io.puts(stdin) if stdin
-        pm.stdin.io.close
+        pm.stdin.io.close if close_stdin
         pm.run!
       end
       pm
@@ -349,12 +371,11 @@ module Proxy::RemoteExecution::Ssh::Runners
       command = "tee #{path} >/dev/null && chmod #{permissions} #{path}"
 
       @logger.debug("Sending data to #{path} on remote host:\n#{data}")
-      pm = run_sync(command, stdin: data)
-
-      @logger.warn("Output on stderr while uploading #{path}:\n#{pm.stderr.to_s.chomp}") unless pm.stderr.empty?
-      if pm.status != 0
-        raise "Unable to upload file to #{path} on remote system: exit code: #{pm.status}"
-      end
+      assert_remote_command(command,
+        publish: true,
+        stdin: data,
+        error: "Unable to upload file to #{path} on remote system, exit code: %{exit_code}"
+      )
 
       path
     end
@@ -366,9 +387,16 @@ module Proxy::RemoteExecution::Ssh::Runners
     end
 
     def ensure_remote_directory(path)
-      pm = run_sync("mkdir -p #{path}")
-      if pm.status != 0
-        raise "Unable to create directory on remote system #{path}: exit code: #{pm.status}\n #{pm.stderr.to_s.chomp}"
+      assert_remote_command("mkdir -p #{path}",
+        publish: true,
+        error: "Unable to create directory #{path} on remote system, exit code: %{exit_code}"
+      )
+    end
+
+    def assert_remote_command(cmd, error: nil, **kwargs)
+      if (pm = run_sync(cmd, **kwargs)).status != 0
+        msg = error || 'Failed to run command %{command} on remote machine, exit code %{exit_code}'
+        raise(msg % { command: cmd, exit_code: pm.status })
       end
     end
 
