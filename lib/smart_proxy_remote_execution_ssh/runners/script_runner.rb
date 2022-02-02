@@ -157,10 +157,10 @@ module Proxy::RemoteExecution::Ssh::Runners
     end
 
     def establish_connection
-      status, stdout, stderr = run_sync(['-f', '-N'])
-      if status != 0
-        publish_data(stderr, 'debug') unless stderr.empty?
-        publish_data(stdout, 'stdout') unless stdout.empty?
+      # run_sync ['-f', '-N'] would be cleaner, but ssh does not close its
+      # stderr which trips up the process manager which expects all FDs to be
+      # closed
+      if run_sync(['true'], publish: true).status != 0
         raise "Unable to establish connection to remote host"
       end
     end
@@ -233,7 +233,7 @@ module Proxy::RemoteExecution::Ssh::Runners
 
     def publish_data(data, type)
       super(data.force_encoding('UTF-8'), type) unless @user_method.filter_password?(data)
-      @user_method.on_data(data, @process_manager.stdin)
+      @user_method.on_data(data, @process_manager.stdin) if @process_manager
     end
 
     private
@@ -290,8 +290,9 @@ module Proxy::RemoteExecution::Ssh::Runners
       @process_manager&.started? && @user_method.sent_all_data?
     end
 
-    def run_sync(command, stdin = nil)
+    def run_sync(command, stdin: nil, publish: false)
       pm = Proxy::Dynflow::ProcessManager.new(get_args(command))
+      set_process_manager_callbacks(pm) if publish
       pm.start!
       unless pm.status
         pm.stdin.io.puts(stdin) if stdin
@@ -348,7 +349,7 @@ module Proxy::RemoteExecution::Ssh::Runners
       command = "tee #{path} >/dev/null && chmod #{permissions} #{path}"
 
       @logger.debug("Sending data to #{path} on remote host:\n#{data}")
-      pm = run_sync(command, data)
+      pm = run_sync(command, stdin: data)
 
       @logger.warn("Output on stderr while uploading #{path}:\n#{pm.stderr.to_s.chomp}") unless pm.stderr.empty?
       if pm.status != 0
