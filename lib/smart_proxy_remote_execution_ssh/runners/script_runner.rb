@@ -158,14 +158,14 @@ module Proxy::RemoteExecution::Ssh::Runners
     end
 
     def preflight_checks
-      assert_remote_command(cp_script_to_remote("#!/bin/sh\nexec true", 'test'),
+      ensure_remote_command(cp_script_to_remote("#!/bin/sh\nexec true", 'test'),
         publish: true,
-        error: 'Failed to execute script on remote machine, exit code %{exit_code}.'
+        error: 'Failed to execute script on remote machine, exit code: %{exit_code}.'
       )
       unless @user_method.is_a? NoopUserMethod
         path = cp_script_to_remote("#!/bin/sh\nexec #{@user_method.cli_command_prefix} true", 'effective-user-test')
-        assert_remote_command(path,
-                              error: 'Failed to change to effective user, exit code %{exit_code}',
+        ensure_remote_command(path,
+                              error: 'Failed to change to effective user, exit code: %{exit_code}',
                               publish: true,
                               tty: true,
                               close_stdin: false)
@@ -176,10 +176,10 @@ module Proxy::RemoteExecution::Ssh::Runners
       # run_sync ['-f', '-N'] would be cleaner, but ssh does not close its
       # stderr which trips up the process manager which expects all FDs to be
       # closed
-      assert_remote_command(
+      ensure_remote_command(
         'true',
         publish: true,
-        error: 'Failed to establish connection to remote host, exit code %{exit_code}'
+        error: 'Failed to establish connection to remote host, exit code: %{exit_code}'
       )
     end
 
@@ -371,7 +371,7 @@ module Proxy::RemoteExecution::Ssh::Runners
       command = "tee #{path} >/dev/null && chmod #{permissions} #{path}"
 
       @logger.debug("Sending data to #{path} on remote host:\n#{data}")
-      assert_remote_command(command,
+      ensure_remote_command(command,
         publish: true,
         stdin: data,
         error: "Unable to upload file to #{path} on remote system, exit code: %{exit_code}"
@@ -387,15 +387,15 @@ module Proxy::RemoteExecution::Ssh::Runners
     end
 
     def ensure_remote_directory(path)
-      assert_remote_command("mkdir -p #{path}",
+      ensure_remote_command("mkdir -p #{path}",
         publish: true,
         error: "Unable to create directory #{path} on remote system, exit code: %{exit_code}"
       )
     end
 
-    def assert_remote_command(cmd, error: nil, **kwargs)
+    def ensure_remote_command(cmd, error: nil, **kwargs)
       if (pm = run_sync(cmd, **kwargs)).status != 0
-        msg = error || 'Failed to run command %{command} on remote machine, exit code %{exit_code}'
+        msg = error || 'Failed to run command %{command} on remote machine, exit code: %{exit_code}'
         raise(msg % { command: cmd, exit_code: pm.status })
       end
     end
