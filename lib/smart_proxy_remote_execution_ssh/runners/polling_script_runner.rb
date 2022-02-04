@@ -131,7 +131,7 @@ module Proxy::RemoteExecution::Ssh::Runners
 
     def cleanup
       if @cleanup_working_dirs
-        assert_remote_command("rm -rf #{remote_command_dir}",
+        ensure_remote_command("rm -rf #{remote_command_dir}",
                               publish: true,
                               error: "Unable to remove working directory #{remote_command_dir} on remote system, exit code: %{exit_code}")
       end
