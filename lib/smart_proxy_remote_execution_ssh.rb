@@ -47,7 +47,7 @@ module Proxy::RemoteExecution
           when :ssh
             Plugin.logger.warn('Deprecated option async_ssh used together with ssh mode, switching mode to ssh-async.')
             Plugin.settings.mode = :'ssh-async'
-          when :'async-ssh'
+          when :'ssh-async'
             # This is a noop
           else
             Plugin.logger.warn('Deprecated option async_ssh used together with incompatible mode, ignoring.')
