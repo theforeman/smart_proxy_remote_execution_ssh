@@ -40,6 +40,7 @@ module Proxy::RemoteExecution::Ssh::Runners
       control_script_finish = "#{@control_script_path} init-script-finish"
       <<-SCRIPT.gsub(/^ +\| /, '')
       | export CONTROL_SCRIPT="#{@control_script_path}"
+      | #{"chown #{@user_method.effective_user} #{@base_dir}" if @user_method.cli_command_prefix}
       | #{@user_method.cli_command_prefix} sh -c '#{main_script}; #{control_script_finish}' #{close_fds} &
       SCRIPT
     end
