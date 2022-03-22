@@ -3,6 +3,7 @@
 :ssh_identity_key_file: '~/.ssh/id_rsa_foreman_proxy'
 :local_working_dir: '/var/tmp'
 :remote_working_dir: '/var/tmp'
+:socket_working_dir: '/var/tmp'
 # :kerberos_auth: false
 
 # :cockpit_integration: true

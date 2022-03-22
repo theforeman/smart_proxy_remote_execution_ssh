@@ -10,6 +10,7 @@ module Proxy::RemoteExecution
         validate_mode!
         validate_ssh_settings!
         validate_mqtt_settings!
+        validate_socket_path!
       end
 
       def private_key_file
@@ -94,6 +95,13 @@ module Proxy::RemoteExecution
 
       def requires_configured_ssh?
         %i[ssh ssh-async].include?(Plugin.settings.mode) || Plugin.settings.cockpit_integration
+      end
+
+      def validate_socket_path!
+        return unless Plugin.settings.mode == :'ssh' || Plugin.settings.mode == :'ssh-async'
+
+        socket_path = File.expand_path(Plugin.settings.socket_working_dir)
+        raise "Socket path #{socket_path} is too long" if socket_path.length > Plugin::SOCKET_PATH_MAX_LENGTH
       end
 
       def job_storage
