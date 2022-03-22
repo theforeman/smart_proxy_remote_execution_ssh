@@ -2,6 +2,10 @@ module Proxy::RemoteExecution::Ssh
   class Plugin < Proxy::Plugin
     SSH_LOG_LEVELS = %w[debug info error fatal].freeze
     MODES = %i[ssh async-ssh pull pull-mqtt].freeze
+    # Unix domain socket path length is limited to 104 (on some platforms) characters
+    # Socket path is composed of custom path (max 49 characters) + job id (37 characters)
+    # + offset(17 characters) + null terminator
+    SOCKET_PATH_MAX_LENGTH = 49
 
     http_rackup_path File.expand_path("http_config.ru", File.expand_path("../", __FILE__))
     https_rackup_path File.expand_path("http_config.ru", File.expand_path("../", __FILE__))
@@ -11,6 +15,7 @@ module Proxy::RemoteExecution::Ssh
                      :ssh_user                => 'root',
                      :remote_working_dir      => '/var/tmp',
                      :local_working_dir       => '/var/tmp',
+                     :socket_working_dir      => '/var/tmp',
                      :kerberos_auth           => false,
                      :cockpit_integration     => true,
                      # When set to nil, makes REX use the runner's default interval

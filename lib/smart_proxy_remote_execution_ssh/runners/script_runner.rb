@@ -112,6 +112,7 @@ module Proxy::RemoteExecution::Ssh::Runners
       @client_private_key_file = settings.ssh_identity_key_file
       @local_working_dir = options.fetch(:local_working_dir, settings.local_working_dir)
       @remote_working_dir = options.fetch(:remote_working_dir, settings.remote_working_dir.shellescape)
+      @socket_working_dir = options.fetch(:socket_working_dir, settings.socket_working_dir)
       @cleanup_working_dirs = options.fetch(:cleanup_working_dirs, settings.cleanup_working_dirs)
       @first_execution = options.fetch(:first_execution, false)
       @user_method = user_method
@@ -231,9 +232,9 @@ module Proxy::RemoteExecution::Ssh::Runners
     end
 
     def close_session
-      raise 'Control socket file does not exist' unless File.exist?(local_command_file("socket"))
+      raise 'Control socket file does not exist' unless File.exist?(socket_file)
       @logger.debug("Sending exit request for session #{@ssh_user}@#{@host}")
-      args = ['/usr/bin/ssh', @host, "-o", "ControlPath=#{local_command_file("socket")}", "-O", "exit"].flatten
+      args = ['/usr/bin/ssh', @host, "-o", "ControlPath=#{socket_file}", "-O", "exit"].flatten
       pm = Proxy::Dynflow::ProcessManager.new(args)
       pm.on_stdout { |data| @logger.debug "[close_session]: #{data.chomp}"; data }
       pm.on_stderr { |data| @logger.debug "[close_session]: #{data.chomp}"; data }
@@ -278,7 +279,7 @@ module Proxy::RemoteExecution::Ssh::Runners
       ssh_options << "-o NumberOfPasswordPrompts=1"
       ssh_options << "-o LogLevel=#{settings[:ssh_log_level]}"
       ssh_options << "-o ControlMaster=auto"
-      ssh_options << "-o ControlPath=#{local_command_file("socket")}"
+      ssh_options << "-o ControlPath=#{socket_file}"
       ssh_options << "-o ControlPersist=yes"
     end
 
@@ -338,6 +339,10 @@ module Proxy::RemoteExecution::Ssh::Runners
 
     def local_command_file(filename)
       File.join(ensure_local_directory(local_command_dir), filename)
+    end
+
+    def socket_file
+      File.join(ensure_local_directory(@socket_working_dir), @id)
     end
 
     def remote_command_dir
