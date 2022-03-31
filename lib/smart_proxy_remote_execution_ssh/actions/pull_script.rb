@@ -90,9 +90,9 @@ module Proxy::RemoteExecution::Ssh::Actions
     def with_mqtt_client(&block)
       MQTT::Client.connect(settings.mqtt_broker, settings.mqtt_port,
                            :ssl => settings.mqtt_tls,
-                           :cert_file => ::Proxy::SETTINGS.ssl_certificate,
-                           :key_file => ::Proxy::SETTINGS.ssl_private_key,
-                           :ca_file => ::Proxy::SETTINGS.ssl_ca_file,
+                           :cert_file => ::Proxy::SETTINGS.foreman_ssl_cert,
+                           :key_file => ::Proxy::SETTINGS.foreman_ssl_key,
+                           :ca_file => ::Proxy::SETTINGS.foreman_ssl_ca,
                            &block)
     end
 

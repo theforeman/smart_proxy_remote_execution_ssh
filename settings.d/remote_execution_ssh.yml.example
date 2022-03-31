@@ -26,6 +26,6 @@
 # :mqtt_port: 1883
 
 # Use of SSL can be forced either way by explicitly setting mqtt_tls setting. If
-# unset, SSL gets used if smart-proxy's ssl_certificate, ssl_private_key and
-# ssl_ca_file settings are set available.
+# unset, SSL gets used if smart-proxy's foreman_ssl_cert, foreman_ssl_key and
+# foreman_ssl_ca settings are set available.
 # :mqtt_tls:
