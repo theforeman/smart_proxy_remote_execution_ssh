@@ -12,6 +12,7 @@ module Proxy::RemoteExecution::Ssh
                      :remote_working_dir      => '/var/tmp',
                      :local_working_dir       => '/var/tmp',
                      :kerberos_auth           => false,
+                     :cockpit_integration     => true,
                      # When set to nil, makes REX use the runner's default interval
                      # :runner_refresh_interval => nil,
                      :ssh_log_level           => :error,
@@ -19,6 +20,8 @@ module Proxy::RemoteExecution::Ssh
                      # :mqtt_broker             => nil,
                      # :mqtt_port               => nil,
                      :mode                    => :ssh
+
+    capability(proc { 'cockpit' if settings.cockpit_integration })
 
     plugin :script, Proxy::RemoteExecution::Ssh::VERSION
     after_activation do
