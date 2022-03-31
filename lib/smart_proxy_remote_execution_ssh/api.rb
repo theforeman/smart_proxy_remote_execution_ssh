@@ -13,14 +13,16 @@ module Proxy::RemoteExecution
         File.read(Ssh.public_key_file)
       end
 
-      post "/session" do
-        do_authorize_any
-        session = Cockpit::Session.new(env)
-        unless session.valid?
-          return [ 400, "Invalid request: /ssh/session requires connection upgrade to 'raw'" ]
+      if Proxy::RemoteExecution::Ssh::Plugin.settings.cockpit_integration
+        post "/session" do
+          do_authorize_any
+          session = Cockpit::Session.new(env)
+          unless session.valid?
+            return [ 400, "Invalid request: /ssh/session requires connection upgrade to 'raw'" ]
+          end
+          session.hijack!
+          101
         end
-        session.hijack!
-        101
       end
 
       delete '/known_hosts/:name' do |name|

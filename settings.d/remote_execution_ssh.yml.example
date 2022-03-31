@@ -5,6 +5,8 @@
 :remote_working_dir: '/var/tmp'
 # :kerberos_auth: false
 
+# :cockpit_integration: true
+
 # Mode of operation, one of ssh, ssh-async, pull, pull-mqtt
 :mode: ssh
 
