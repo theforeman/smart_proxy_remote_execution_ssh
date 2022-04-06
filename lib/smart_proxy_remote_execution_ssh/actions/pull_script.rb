@@ -88,9 +88,18 @@ module Proxy::RemoteExecution::Ssh::Actions
     end
 
     def mqtt_notify(payload)
-      MQTT::Client.connect(settings.mqtt_broker, settings.mqtt_port) do |c|
+      with_mqtt_client do |c|
         c.publish(mqtt_topic, JSON.dump(payload), false, 1)
       end
+    end
+
+    def with_mqtt_client(&block)
+      MQTT::Client.connect(settings.mqtt_broker, settings.mqtt_port,
+                           :ssl => settings.mqtt_tls,
+                           :cert_file => ::Proxy::SETTINGS.foreman_ssl_cert,
+                           :key_file => ::Proxy::SETTINGS.foreman_ssl_key,
+                           :ca_file => ::Proxy::SETTINGS.foreman_ssl_ca,
+                           &block)
     end
 
     def host_name

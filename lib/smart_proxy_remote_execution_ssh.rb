@@ -60,6 +60,10 @@ module Proxy::RemoteExecution
 
         raise 'mqtt_broker has to be set when pull-mqtt mode is used' if Plugin.settings.mqtt_broker.nil?
         raise 'mqtt_port has to be set when pull-mqtt mode is used' if Plugin.settings.mqtt_port.nil?
+
+        if Plugin.settings.mqtt_tls.nil?
+          Plugin.settings.mqtt_tls = [:foreman_ssl_cert, :foreman_ssl_key, :foreman_ssl_ca].all? { |key| ::Proxy::SETTINGS[key] }
+        end
       end
 
       def validate_ssh_log_level!

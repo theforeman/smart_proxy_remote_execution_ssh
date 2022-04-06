@@ -18,6 +18,7 @@ module Proxy::RemoteExecution::Ssh
                      :cleanup_working_dirs    => true,
                      # :mqtt_broker             => nil,
                      # :mqtt_port               => nil,
+                     # :mqtt_tls                => nil,
                      :mode                    => :ssh
 
     plugin :ssh, Proxy::RemoteExecution::Ssh::VERSION
