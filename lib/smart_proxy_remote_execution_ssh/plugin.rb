@@ -21,7 +21,7 @@ module Proxy::RemoteExecution::Ssh
                      # :mqtt_tls                => nil,
                      :mode                    => :ssh
 
-    plugin :ssh, Proxy::RemoteExecution::Ssh::VERSION
+    plugin :script, Proxy::RemoteExecution::Ssh::VERSION
     after_activation do
       require 'smart_proxy_dynflow'
       require 'smart_proxy_remote_execution_ssh/version'
