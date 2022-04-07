@@ -7,21 +7,8 @@ module Proxy::RemoteExecution
   module Ssh
     class << self
       def validate!
-        unless private_key_file
-          raise "settings for `ssh_identity_key` not set"
-        end
-
-        unless File.exist?(private_key_file)
-          raise "Ssh public key file #{private_key_file} doesn't exist.\n"\
-            "You can generate one with `ssh-keygen -t rsa -b 4096 -f #{private_key_file} -N ''`"
-        end
-
-        unless File.exist?(public_key_file)
-          raise "Ssh public key file #{public_key_file} doesn't exist"
-        end
-
         validate_mode!
-        validate_ssh_log_level!
+        validate_ssh_settings!
         validate_mqtt_settings!
       end
 
@@ -66,6 +53,24 @@ module Proxy::RemoteExecution
         end
       end
 
+      def validate_ssh_settings!
+        return unless requires_configured_ssh?
+        unless private_key_file
+          raise "settings for `ssh_identity_key` not set"
+        end
+
+        unless File.exist?(private_key_file)
+          raise "SSH public key file #{private_key_file} doesn't exist.\n"\
+            "You can generate one with `ssh-keygen -t rsa -b 4096 -f #{private_key_file} -N ''`"
+        end
+
+        unless File.exist?(public_key_file)
+          raise "SSH public key file #{public_key_file} doesn't exist"
+        end
+
+        validate_ssh_log_level!
+      end
+
       def validate_ssh_log_level!
         wanted_level = Plugin.settings.ssh_log_level.to_s
         levels = Plugin::SSH_LOG_LEVELS
@@ -85,6 +90,10 @@ module Proxy::RemoteExecution
         end
 
         Plugin.settings.ssh_log_level = Plugin.settings.ssh_log_level.to_sym
+      end
+
+      def requires_configured_ssh?
+        %i[ssh ssh-async].include?(Plugin.settings.mode) || Plugin.settings.cockpit_integration
       end
 
       def job_storage
