@@ -300,7 +300,9 @@ module Proxy::RemoteExecution::Ssh::Runners
       raise 'Async command already in progress' if @process_manager&.started?
 
       @user_method.reset
-      initialize_command(*get_args(command, true))
+      full_cmd = get_args(command, true)
+      @logger.debug("running command: #{full_cmd.join(' ')}")
+      initialize_command(*full_cmd)
 
       true
     end
@@ -310,7 +312,9 @@ module Proxy::RemoteExecution::Ssh::Runners
     end
 
     def run_sync(command, stdin: nil, publish: false, close_stdin: true, tty: false)
-      pm = Proxy::Dynflow::ProcessManager.new(get_args(command, tty))
+      full_cmd = get_args(command, tty)
+      @logger.debug("running command: #{full_cmd.join(' ')}")
+      pm = Proxy::Dynflow::ProcessManager.new(full_cmd)
       if publish
         pm.on_stdout { |data| publish_data(data, 'stdout', pm); '' }
         pm.on_stderr { |data| publish_data(data, 'stderr', pm); '' }
