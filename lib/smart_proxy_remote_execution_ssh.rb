@@ -49,7 +49,7 @@ module Proxy::RemoteExecution
         raise 'mqtt_port has to be set when pull-mqtt mode is used' if Plugin.settings.mqtt_port.nil?
 
         if Plugin.settings.mqtt_tls.nil?
-          Plugin.settings.mqtt_tls = [:foreman_ssl_cert, :foreman_ssl_key, :foreman_ssl_ca].all? { |key| ::Proxy::SETTINGS[key] }
+          Plugin.settings.mqtt_tls = [[:foreman_ssl_cert, :ssl_certificate], [:foreman_ssl_key, :ssl_private_key], [:foreman_ssl_ca, :ssl_ca_file]].all? { |(client, server)| ::Proxy::SETTINGS[client] || ::Proxy::SETTINGS[server] }
         end
       end
 
