@@ -1,5 +1,6 @@
 require 'mqtt'
 require 'json'
+require 'time'
 
 module Proxy::RemoteExecution::Ssh::Actions
   class PullScript < Proxy::Dynflow::Action::Runner
@@ -25,6 +26,7 @@ module Proxy::RemoteExecution::Ssh::Actions
       otp_password = if input[:with_mqtt]
                        ::Proxy::Dynflow::OtpManager.generate_otp(execution_plan_id)
                      end
+
       input[:job_uuid] = job_storage.store_job(host_name, execution_plan_id, run_step_id, input[:script].tr("\r", ''))
       output[:state] = :ready_for_pickup
       output[:result] = []
@@ -40,9 +42,40 @@ module Proxy::RemoteExecution::Ssh::Actions
     def process_external_event(event)
       output[:state] = :running
       data = event.data
+      case data['version']
+      when nil
+        process_external_unversioned(data)
+      when '1'
+        process_external_v1(data)
+      else
+        raise "Unexpected update message version '#{data['version']}'"
+      end
+    end
+
+    def process_external_unversioned(payload)
       continuous_output = Proxy::Dynflow::ContinuousOutput.new
-      Array(data['output']).each { |line| continuous_output.add_output(line, 'stdout') } if data.key?('output')
-      exit_code = data['exit_code'].to_i if data['exit_code']
+      Array(payload['output']).each { |line| continuous_output.add_output(line, payload['type']) } if payload.key?('output')
+      exit_code = payload['exit_code'].to_i if payload['exit_code']
+      process_update(Proxy::Dynflow::Runner::Update.new(continuous_output, exit_code))
+    end
+
+    def process_external_v1(payload)
+      continuous_output = Proxy::Dynflow::ContinuousOutput.new
+      exit_code = nil
+
+      payload['updates'].each do |update|
+        time = Time.parse update['timestamp']
+        type = update['type']
+        case type
+        when 'output'
+          continuous_output.add_output(update['content'], update['stream'], time)
+        when 'exit'
+          exit_code = update['exit_code'].to_i
+        else
+          raise "Unexpected update type '#{update['type']}'"
+        end
+      end
+
       process_update(Proxy::Dynflow::Runner::Update.new(continuous_output, exit_code))
     end
 
