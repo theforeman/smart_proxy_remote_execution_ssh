@@ -25,7 +25,7 @@ module Proxy::RemoteExecution::Ssh::Actions
       otp_password = if input[:with_mqtt]
                        ::Proxy::Dynflow::OtpManager.generate_otp(execution_plan_id)
                      end
-      input[:job_uuid] = job_storage.store_job(host_name, execution_plan_id, run_step_id, input[:script])
+      input[:job_uuid] = job_storage.store_job(host_name, execution_plan_id, run_step_id, input[:script].tr("\r", ''))
       output[:state] = :ready_for_pickup
       output[:result] = []
       mqtt_start(otp_password) if input[:with_mqtt]
