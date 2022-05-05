@@ -266,7 +266,7 @@ module Proxy::RemoteExecution::Ssh::Runners
       @process_manager && @cleanup_working_dirs
     end
 
-    def ssh_options(with_pty = false)
+    def ssh_options(with_pty = false, quiet: false)
       ssh_options = []
       ssh_options << "-tt" if with_pty
       ssh_options << "-o User=#{@ssh_user}"
@@ -277,7 +277,7 @@ module Proxy::RemoteExecution::Ssh::Runners
       ssh_options << "-o PreferredAuthentications=#{available_authentication_methods.join(',')}"
       ssh_options << "-o UserKnownHostsFile=#{prepare_known_hosts}" if @host_public_key
       ssh_options << "-o NumberOfPasswordPrompts=1"
-      ssh_options << "-o LogLevel=#{settings[:ssh_log_level]}"
+      ssh_options << "-o LogLevel=#{quiet ? 'quiet' : settings[:ssh_log_level]}"
       ssh_options << "-o ControlMaster=auto"
       ssh_options << "-o ControlPath=#{socket_file}"
       ssh_options << "-o ControlPersist=yes"
@@ -287,11 +287,11 @@ module Proxy::RemoteExecution::Ssh::Runners
       Proxy::RemoteExecution::Ssh::Plugin.settings
     end
 
-    def get_args(command, with_pty = false)
+    def get_args(command, with_pty = false, quiet: false)
       args = []
       args = [{'SSHPASS' => @key_passphrase}, '/usr/bin/sshpass', '-P', 'passphrase', '-e'] if @key_passphrase
       args = [{'SSHPASS' => @ssh_password}, '/usr/bin/sshpass', '-e'] if @ssh_password
-      args += ['/usr/bin/ssh', @host, ssh_options(with_pty), command].flatten
+      args += ['/usr/bin/ssh', @host, ssh_options(with_pty, quiet: quiet), command].flatten
     end
 
     # Initiates run of the remote command and yields the data when
@@ -301,7 +301,7 @@ module Proxy::RemoteExecution::Ssh::Runners
       raise 'Async command already in progress' if @process_manager&.started?
 
       @user_method.reset
-      initialize_command(*get_args(command, true))
+      initialize_command(*get_args(command, true, quiet: true))
 
       true
     end
