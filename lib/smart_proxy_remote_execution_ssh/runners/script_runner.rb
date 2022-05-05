@@ -278,11 +278,11 @@ module Proxy::RemoteExecution::Ssh::Runners
       '-tt' if tty
     end
 
-    def run_sync(command, stdin: nil, close_stdin: true, tty: false)
+    def run_sync(command, stdin: nil, close_stdin: true, tty: false, user_method: false)
       cmd = @connection.command([tty_flag(tty), command].flatten.compact)
       log_command(cmd)
       pm = Proxy::Dynflow::ProcessManager.new(cmd)
-      set_pm_debug_logging(pm)
+      set_pm_debug_logging(pm, user_method: user_method)
       pm.start!
       unless pm.status
         pm.stdin.io.puts(stdin) if stdin

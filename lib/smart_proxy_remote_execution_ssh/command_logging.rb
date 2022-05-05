@@ -8,15 +8,16 @@ module Proxy::RemoteExecution::Ssh::Runners
       logger.debug("#{label}#{command}")
     end
 
-    def set_pm_debug_logging(pm, capture: false)
-      pm.on_stdout do |data|
-        data.each_line { |line| logger.debug(line.chomp) }
+    def set_pm_debug_logging(pm, capture: false, user_method: nil)
+      callback = proc do |data|
+        data.each_line do |line|
+          logger.debug(line.chomp) if user_method.nil? || !user_method.filter_password?(line)
+          user_method.on_data(data, pm.stdin) if user_method
+        end
         ''
       end
-      pm.on_stderr do |data|
-        data.each_line { |line| logger.debug(line.chomp) }
-        ''
-      end
+      pm.on_stdout(&callback)
+      pm.on_stderr(&callback)
     end
   end
 end
