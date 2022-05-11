@@ -36,7 +36,8 @@ module Proxy::RemoteExecution::Ssh::Runners
     end
 
     def ssh_options
-      ["-o PreferredAuthentications=#{name}"]
+      ["-o PreferredAuthentications=#{name}",
+       "-o NumberOfPasswordPrompts=#{@password ? 1 : 0}"]
     end
   end
 
@@ -139,7 +140,6 @@ module Proxy::RemoteExecution::Ssh::Runners
       ssh_options << "-o IdentitiesOnly=yes"
       ssh_options << "-o StrictHostKeyChecking=no"
       ssh_options << "-o UserKnownHostsFile=#{prepare_known_hosts}" if @host_public_key
-      ssh_options << "-o NumberOfPasswordPrompts=1"
       ssh_options << "-o LogLevel=#{ssh_log_level(true)}"
       ssh_options << "-o ControlMaster=auto"
       ssh_options << "-o ControlPath=#{socket_file}"
