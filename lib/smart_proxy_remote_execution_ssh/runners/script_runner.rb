@@ -116,7 +116,7 @@ module Proxy::RemoteExecution::Ssh::Runners
       @cleanup_working_dirs = options.fetch(:cleanup_working_dirs, settings.cleanup_working_dirs)
       @first_execution = options.fetch(:first_execution, false)
       @user_method = user_method
-      @connection = MultiplexedSSHConnection.new(options.merge(:id => @id), logger: logger)
+      @options = options
     end
 
     def self.build(options, suspended_action:)
@@ -145,6 +145,7 @@ module Proxy::RemoteExecution::Ssh::Runners
     def start
       Proxy::RemoteExecution::Utils.prune_known_hosts!(@host, @ssh_port, logger) if @first_execution
       ensure_local_directory(@socket_working_dir)
+      @connection = MultiplexedSSHConnection.new(@options.merge(:id => @id), logger: logger)
       @connection.establish!
       preflight_checks
       prepare_start
