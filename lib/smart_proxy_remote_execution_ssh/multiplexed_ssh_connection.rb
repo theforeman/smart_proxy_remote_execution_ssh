@@ -65,33 +65,14 @@ module Proxy::RemoteExecution::Ssh::Runners
     end
 
     def establish!
-      base = establish_ssh_options()
-
-      auth_methods = available_authentication_methods
-      auth_methods.each do |method|
-        # running "ssh -f -N" instead of "ssh true" would be cleaner, but ssh
-        # does not close its stderr which trips up the process manager which
-        # expects all FDs to be closed
-        full_command = [method.ssh_command_prefix, '/usr/bin/ssh', base, method.ssh_options, @host, 'true'].flatten
-        log_command(full_command)
-        pm = Proxy::Dynflow::ProcessManager.new(full_command)
-        pm.start!
-        if pm.status
-          raise pm.stderr.to_s
-        else
-          set_pm_debug_logging(pm)
-          pm.stdin.io.close
-          pm.run!
-        end
-        if pm.status.zero?
-          logger.debug("Established connection using authentication method #{method.name}")
-          @socket = socket_file
-          return
-        else
-          logger.debug("Failed to establish connection using authentication method #{method.name}")
+      @available_auth_methods ||= available_authentication_methods
+      method = @available_auth_methods.find do |method|
+        if try_auth_method(method)
+          @available_auth_methods.unshift(method).uniq!
+          true
         end
       end
-      raise "Could not establish connection to remote host using any available authentication method, tried #{auth_methods.map(&:name).join(', ')}"
+      method || raise("Could not establish connection to remote host using any available authentication method, tried #{@available_auth_methods.map(&:name).join(', ')}")
     end
 
     def disconnect!
@@ -117,6 +98,33 @@ module Proxy::RemoteExecution::Ssh::Runners
 
     private
 
+    def try_auth_method(method)
+      # running "ssh -f -N" instead of "ssh true" would be cleaner, but ssh
+      # does not close its stderr which trips up the process manager which
+      # expects all FDs to be closed
+
+      full_command = [method.ssh_command_prefix, '/usr/bin/ssh', establish_ssh_options, method.ssh_options, @host, 'true'].flatten
+      log_command(full_command)
+      pm = Proxy::Dynflow::ProcessManager.new(full_command)
+      pm.start!
+      if pm.status
+        raise pm.stderr.to_s
+      else
+        set_pm_debug_logging(pm)
+        pm.stdin.io.close
+        pm.run!
+      end
+
+      if pm.status.zero?
+        logger.debug("Established connection using authentication method #{method.name}")
+        @socket = socket_file
+        true
+      else
+        logger.debug("Failed to establish connection using authentication method #{method.name}")
+        false
+      end
+    end
+
     def settings
       Proxy::RemoteExecution::Ssh::Plugin.settings
     end
@@ -133,6 +141,7 @@ module Proxy::RemoteExecution::Ssh::Runners
     end
 
     def establish_ssh_options
+      return @establish_ssh_options if @establish_ssh_options
       ssh_options = []
       ssh_options << "-o User=#{@ssh_user}"
       ssh_options << "-o Port=#{@ssh_port}" if @ssh_port
@@ -144,6 +153,7 @@ module Proxy::RemoteExecution::Ssh::Runners
       ssh_options << "-o ControlMaster=auto"
       ssh_options << "-o ControlPath=#{socket_file}"
       ssh_options << "-o ControlPersist=yes"
+      @establish_ssh_options = ssh_options
     end
 
     def reuse_ssh_options
