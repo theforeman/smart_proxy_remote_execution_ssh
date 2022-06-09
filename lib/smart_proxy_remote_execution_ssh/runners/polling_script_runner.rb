@@ -50,13 +50,13 @@ module Proxy::RemoteExecution::Ssh::Runners
     end
 
     def refresh
+      @connection.establish! unless @connection.connected?
       begin
         pm = run_sync("#{@user_method.cli_command_prefix} #{@retrieval_script}")
+        process_retrieved_data(pm.stdout.to_s.chomp, pm.stderr.to_s.chomp)
       rescue StandardError => e
         @logger.info("Error while connecting to the remote host on refresh: #{e.message}")
       end
-
-      process_retrieved_data(pm.stdout.to_s.chomp, pm.stderr.to_s.chomp)
     ensure
       destroy_session
     end
@@ -139,7 +139,7 @@ module Proxy::RemoteExecution::Ssh::Runners
     end
 
     def destroy_session
-      if @session
+      if @connection.connected?
         @logger.debug("Closing session with #{@ssh_user}@#{@host}")
         close_session
       end

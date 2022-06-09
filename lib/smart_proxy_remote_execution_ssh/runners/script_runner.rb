@@ -1,6 +1,7 @@
 require 'fileutils'
 require 'smart_proxy_dynflow/runner/process_manager_command'
 require 'smart_proxy_dynflow/process_manager'
+require 'smart_proxy_remote_execution_ssh/multiplexed_ssh_connection'
 
 module Proxy::RemoteExecution::Ssh::Runners
   class EffectiveUserMethod
@@ -92,6 +93,8 @@ module Proxy::RemoteExecution::Ssh::Runners
   # rubocop:disable Metrics/ClassLength
   class ScriptRunner < Proxy::Dynflow::Runner::Base
     include Proxy::Dynflow::Runner::ProcessManagerCommand
+    include CommandLogging
+
     attr_reader :execution_timeout_interval
 
     EXPECTED_POWER_ACTION_MESSAGES = ['restart host', 'shutdown host'].freeze
@@ -103,10 +106,7 @@ module Proxy::RemoteExecution::Ssh::Runners
       @script = options.fetch(:script)
       @ssh_user = options.fetch(:ssh_user, 'root')
       @ssh_port = options.fetch(:ssh_port, 22)
-      @ssh_password = options.fetch(:secrets, {}).fetch(:ssh_password, nil)
-      @key_passphrase = options.fetch(:secrets, {}).fetch(:key_passphrase, nil)
       @host_public_key = options.fetch(:host_public_key, nil)
-      @verify_host = options.fetch(:verify_host, nil)
       @execution_timeout_interval = options.fetch(:execution_timeout_interval, nil)
 
       @client_private_key_file = settings.ssh_identity_key_file
@@ -116,6 +116,7 @@ module Proxy::RemoteExecution::Ssh::Runners
       @cleanup_working_dirs = options.fetch(:cleanup_working_dirs, settings.cleanup_working_dirs)
       @first_execution = options.fetch(:first_execution, false)
       @user_method = user_method
+      @options = options
     end
 
     def self.build(options, suspended_action:)
@@ -143,7 +144,9 @@ module Proxy::RemoteExecution::Ssh::Runners
 
     def start
       Proxy::RemoteExecution::Utils.prune_known_hosts!(@host, @ssh_port, logger) if @first_execution
-      establish_connection
+      ensure_local_directory(@socket_working_dir)
+      @connection = MultiplexedSSHConnection.new(@options.merge(:id => @id), logger: logger)
+      @connection.establish!
       preflight_checks
       prepare_start
       script = initialization_script
@@ -170,16 +173,6 @@ module Proxy::RemoteExecution::Ssh::Runners
                               user_method: @user_method,
                               close_stdin: false)
       end
-    end
-
-    def establish_connection
-      # run_sync ['-f', '-N'] would be cleaner, but ssh does not close its
-      # stderr which trips up the process manager which expects all FDs to be
-      # closed
-      ensure_remote_command(
-        'true',
-        error: 'Failed to establish connection to remote host, exit code: %{exit_code}'
-      )
     end
 
     def prepare_start
@@ -232,11 +225,7 @@ module Proxy::RemoteExecution::Ssh::Runners
     def close_session
       raise 'Control socket file does not exist' unless File.exist?(socket_file)
       @logger.debug("Sending exit request for session #{@ssh_user}@#{@host}")
-      args = ['/usr/bin/ssh', @host, "-o", "ControlPath=#{socket_file}", "-O", "exit"].flatten
-      pm = Proxy::Dynflow::ProcessManager.new(args)
-      pm.on_stdout { |data| @logger.debug "[close_session]: #{data.chomp}"; data }
-      pm.on_stderr { |data| @logger.debug "[close_session]: #{data.chomp}"; data }
-      pm.run!
+      @connection.disconnect!
     end
 
     def close
@@ -264,32 +253,8 @@ module Proxy::RemoteExecution::Ssh::Runners
       @process_manager && @cleanup_working_dirs
     end
 
-    def ssh_options(with_pty = false, quiet: false)
-      ssh_options = []
-      ssh_options << "-tt" if with_pty
-      ssh_options << "-o User=#{@ssh_user}"
-      ssh_options << "-o Port=#{@ssh_port}" if @ssh_port
-      ssh_options << "-o IdentityFile=#{@client_private_key_file}" if @client_private_key_file
-      ssh_options << "-o IdentitiesOnly=yes"
-      ssh_options << "-o StrictHostKeyChecking=no"
-      ssh_options << "-o PreferredAuthentications=#{available_authentication_methods.join(',')}"
-      ssh_options << "-o UserKnownHostsFile=#{prepare_known_hosts}" if @host_public_key
-      ssh_options << "-o NumberOfPasswordPrompts=1"
-      ssh_options << "-o LogLevel=#{quiet ? 'quiet' : settings[:ssh_log_level]}"
-      ssh_options << "-o ControlMaster=auto"
-      ssh_options << "-o ControlPath=#{socket_file}"
-      ssh_options << "-o ControlPersist=yes"
-    end
-
     def settings
       Proxy::RemoteExecution::Ssh::Plugin.settings
-    end
-
-    def get_args(command, with_pty = false, quiet: false)
-      args = []
-      args = [{'SSHPASS' => @key_passphrase}, '/usr/bin/sshpass', '-P', 'passphrase', '-e'] if @key_passphrase
-      args = [{'SSHPASS' => @ssh_password}, '/usr/bin/sshpass', '-e'] if @ssh_password
-      args += ['/usr/bin/ssh', @host, ssh_options(with_pty, quiet: quiet), command].flatten
     end
 
     # Initiates run of the remote command and yields the data when
@@ -299,7 +264,9 @@ module Proxy::RemoteExecution::Ssh::Runners
       raise 'Async command already in progress' if @process_manager&.started?
 
       @user_method.reset
-      initialize_command(*get_args(command, true, quiet: true))
+      cmd = @connection.command([tty_flag(true), command].flatten.compact)
+      log_command(cmd)
+      initialize_command(*cmd)
 
       true
     end
@@ -308,17 +275,15 @@ module Proxy::RemoteExecution::Ssh::Runners
       @process_manager&.started? && @user_method.sent_all_data?
     end
 
+    def tty_flag(tty)
+      '-tt' if tty
+    end
+
     def run_sync(command, stdin: nil, close_stdin: true, tty: false, user_method: nil)
-      pm = Proxy::Dynflow::ProcessManager.new(get_args(command, tty))
-      callback = proc do |data|
-        data.each_line do |line|
-          logger.debug(line.chomp) if user_method.nil? || !user_method.filter_password?(line)
-          user_method.on_data(data, pm.stdin) if user_method
-        end
-        ''
-      end
-      pm.on_stdout(&callback)
-      pm.on_stderr(&callback)
+      cmd = @connection.command([tty_flag(tty), command].flatten.compact)
+      log_command(cmd)
+      pm = Proxy::Dynflow::ProcessManager.new(cmd)
+      set_pm_debug_logging(pm, user_method: user_method)
       pm.start!
       unless pm.status
         pm.stdin.io.puts(stdin) if stdin
@@ -427,13 +392,6 @@ module Proxy::RemoteExecution::Ssh::Runners
       if EXPECTED_POWER_ACTION_MESSAGES.any? { |message| last_output['output'] =~ /^#{message}/ }
         @expecting_disconnect = true
       end
-    end
-
-    def available_authentication_methods
-      methods = %w[publickey] # Always use pubkey auth as fallback
-      methods << 'gssapi-with-mic' if settings[:kerberos_auth]
-      methods.unshift('password') if @ssh_password
-      methods
     end
   end
   # rubocop:enable Metrics/ClassLength
