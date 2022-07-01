@@ -25,7 +25,8 @@ module Proxy::RemoteExecution::Ssh
                      # :mqtt_broker             => nil,
                      # :mqtt_port               => nil,
                      # :mqtt_tls                => nil,
-                     :mode                    => :ssh
+                     :mode                    => :ssh,
+                     :mqtt_resend_interval    => 900
 
     capability(proc { 'cockpit' if settings.cockpit_integration })
 

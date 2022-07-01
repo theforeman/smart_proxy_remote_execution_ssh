@@ -32,3 +32,7 @@
 # unset, SSL gets used if smart-proxy's foreman_ssl_cert, foreman_ssl_key and
 # foreman_ssl_ca settings are set available.
 # :mqtt_tls:
+
+# The notification is sent over mqtt every $mqtt_resend_interval seconds, until
+# the job is picked up by the host or cancelled
+# :mqtt_resend_interval: 900
