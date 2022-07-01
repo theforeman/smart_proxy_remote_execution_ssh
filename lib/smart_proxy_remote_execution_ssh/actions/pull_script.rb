@@ -5,6 +5,7 @@ require 'time'
 module Proxy::RemoteExecution::Ssh::Actions
   class PullScript < Proxy::Dynflow::Action::Runner
     JobDelivered = Class.new
+    ResendNotification = Class.new
 
     execution_plan_hooks.use :cleanup, :on => :stopped
 
@@ -16,6 +17,12 @@ module Proxy::RemoteExecution::Ssh::Actions
     def run(event = nil)
       if event == JobDelivered
         output[:state] = :delivered
+        suspend
+      elsif event == ResendNotification
+        if input[:with_mqtt] && %w(ready_for_pickup notified).include?(output[:state])
+          schedule_mqtt_resend
+          mqtt_start(::Proxy::Dynflow::OtpManager.passwords[execution_plan_id])
+        end
         suspend
       else
         super
@@ -30,7 +37,10 @@ module Proxy::RemoteExecution::Ssh::Actions
       input[:job_uuid] = job_storage.store_job(host_name, execution_plan_id, run_step_id, input[:script].tr("\r", ''))
       output[:state] = :ready_for_pickup
       output[:result] = []
-      mqtt_start(otp_password) if input[:with_mqtt]
+      if input[:with_mqtt]
+        schedule_mqtt_resend
+        mqtt_start(otp_password)
+      end
       suspend
     end
 
@@ -163,6 +173,10 @@ module Proxy::RemoteExecution::Ssh::Actions
         sent: DateTime.now.iso8601,
         directive: 'foreman'
       }
+    end
+
+    def schedule_mqtt_resend
+      plan_event(ResendNotification, settings[:mqtt_resend_interval], optional: true)
     end
   end
 end
