@@ -11,6 +11,7 @@ module Proxy::RemoteExecution::Ssh
         String :hostname, null: false, index: true
         String :execution_plan_uuid, fixed: true, size: 36, null: false, index: true
         Integer :run_step_id, null: false
+        String :effective_user
         String :job, text: true
       end
     end
@@ -24,13 +25,14 @@ module Proxy::RemoteExecution::Ssh
                              .select_map(:uuid)
     end
 
-    def store_job(hostname, execution_plan_uuid, run_step_id, job, uuid: SecureRandom.uuid, timestamp: Time.now.utc)
+    def store_job(hostname, execution_plan_uuid, run_step_id, job, uuid: SecureRandom.uuid, timestamp: Time.now.utc, effective_user: nil)
       jobs.insert(timestamp: timestamp,
                   uuid: uuid,
                   hostname: hostname,
                   execution_plan_uuid: execution_plan_uuid,
                   run_step_id: run_step_id,
-                  job: job)
+                  job: job,
+                  effective_user: effective_user)
       uuid
     end
 

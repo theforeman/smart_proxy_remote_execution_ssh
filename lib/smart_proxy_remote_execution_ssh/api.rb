@@ -65,7 +65,7 @@ module Proxy::RemoteExecution
 
         with_authorized_job(job_uuid) do |job_record|
           notify_job(job_record, Actions::PullScript::JobDelivered)
-          job_record[:job]
+          MultiJson.dump(:script => job_record[:job], :effective_user => job_record[:effective_user], :version => 'v1')
         end
       end
 
