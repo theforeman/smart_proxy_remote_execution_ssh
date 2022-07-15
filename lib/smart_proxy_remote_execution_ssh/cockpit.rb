@@ -1,5 +1,6 @@
 require 'smart_proxy_remote_execution_ssh/net_ssh_compat'
 require 'forwardable'
+require 'securerandom'
 
 module Proxy::RemoteExecution
   module Cockpit
@@ -164,9 +165,8 @@ module Proxy::RemoteExecution
         out_read, out_write = IO.pipe
         err_read, err_write = IO.pipe
 
-        # Force the script runner to initialize its logger
-        script_runner.logger
-        pid = spawn(*script_runner.send(:get_args, command), :in => in_read, :out => out_write, :err => err_write)
+        connection.establish!
+        pid = spawn(*connection.command(command), :in => in_read, :out => out_write, :err => err_write)
         [in_read, out_write, err_write].each(&:close)
 
         send_start
@@ -176,6 +176,8 @@ module Proxy::RemoteExecution
         in_buf  = MiniSSLBufferedSocket.new(in_write)
 
         inner_system_ssh_loop out_buf, err_buf, in_buf, pid
+      ensure
+        connection.disconnect!
       end
 
       def inner_system_ssh_loop(out_buf, err_buf, in_buf, pid)
@@ -188,7 +190,7 @@ module Proxy::RemoteExecution
 
           proxy_data(out_buf, in_buf)
           if buf_socket.closed?
-            script_runner.close_session
+            connection.disconnect!
           end
 
           if out_buf.closed?
@@ -262,10 +264,10 @@ module Proxy::RemoteExecution
         params["hostname"]
       end
 
-      def script_runner
-        @script_runner ||= Proxy::RemoteExecution::Ssh::Runners::ScriptRunner.build(
+      def connection
+        @connection ||= Proxy::RemoteExecution::Ssh::Runners::MultiplexedSSHConnection.new(
           runner_params,
-          suspended_action: nil
+          logger: logger
         )
       end
 
@@ -278,6 +280,7 @@ module Proxy::RemoteExecution
         # For compatibility only
         ret[:script] = nil
         ret[:hostname] = host
+        ret[:id] = SecureRandom.uuid
         ret
       end
     end
