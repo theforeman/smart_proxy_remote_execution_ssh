@@ -182,10 +182,11 @@ module Proxy::RemoteExecution
 
       def inner_system_ssh_loop(out_buf, err_buf, in_buf, pid)
         err_buf_raw = ''
-        readers = [buf_socket, out_buf, err_buf]
         loop do
+          readers = [buf_socket, out_buf, err_buf].reject { |io| io.closed? }
+          writers = [buf_socket, in_buf].select { |io| io.pending_writes? }
           # Prime the sockets for reading
-          ready_readers, ready_writers = IO.select(readers, [buf_socket, in_buf], nil, 300)
+          ready_readers, ready_writers = IO.select(readers, writers)
           (ready_readers || []).each { |reader| reader.close if reader.fill.zero? }
 
           proxy_data(out_buf, in_buf)
