@@ -173,10 +173,14 @@ module Proxy::RemoteExecution
         output.append(data)
       end
 
+      def pending_writes?
+        output.length.positive?
+      end
+
       # Sends as much of the pending output as possible. Returns +true+ if any
       # data was sent, and +false+ otherwise.
       def send_pending
-        if output.length.positive?
+        if pending_writes?
           sent = send(output.to_s, 0)
           output.consume!(sent)
           return sent.positive?
@@ -189,7 +193,7 @@ module Proxy::RemoteExecution
       # buffer is empty.
       def wait_for_pending_sends
         send_pending
-        while output.length.positive?
+        while pending_writes?
           result = IO.select(nil, [self]) || next
           next unless result[1].any?
 
