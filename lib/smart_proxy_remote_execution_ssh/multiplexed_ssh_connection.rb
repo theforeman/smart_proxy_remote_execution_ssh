@@ -153,6 +153,7 @@ module Proxy::RemoteExecution::Ssh::Runners
       ssh_options << "-o ControlMaster=auto"
       ssh_options << "-o ControlPath=#{socket_file}"
       ssh_options << "-o ControlPersist=yes"
+      ssh_options << "-o ProxyCommand=none"
       @establish_ssh_options = ssh_options
     end
 
