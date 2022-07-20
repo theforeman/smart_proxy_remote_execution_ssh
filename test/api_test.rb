@@ -165,7 +165,7 @@ module Proxy::RemoteExecution::Ssh
           auth = Proxy::Dynflow::OtpManager.tokenize(execution_plan_uuid, pass)
 
           fake_world = mock
-          fake_world.expects(:event).with(execution_plan_uuid, run_step_id, Actions::PullScript::JobDelivered)
+          fake_world.expects(:event).with { |uuid, step_id, event| uuid == execution_plan_uuid && step_id == run_step_id && event.is_a?(Actions::PullScript::JobDelivered) }
           Proxy::RemoteExecution::Ssh::Api.any_instance.expects(:world).returns(fake_world)
 
           get "/jobs/#{uuid}", {}, 'HTTP_AUTHORIZATION' => "Basic #{auth}"
@@ -178,7 +178,7 @@ module Proxy::RemoteExecution::Ssh
         it 'returns content if there is some and notifies the action' do
           Proxy::RemoteExecution::Ssh::Api.any_instance.expects(:https_cert_cn).returns(hostname)
           fake_world = mock
-          fake_world.expects(:event).with(execution_plan_uuid, run_step_id, Actions::PullScript::JobDelivered)
+          fake_world.expects(:event).with { |uuid, step_id, event| uuid == execution_plan_uuid && step_id == run_step_id && event.is_a?(Actions::PullScript::JobDelivered) }
           Proxy::RemoteExecution::Ssh::Api.any_instance.expects(:world).returns(fake_world)
 
           get "/jobs/#{uuid}"

@@ -106,6 +106,8 @@ module Proxy::RemoteExecution::Ssh::Actions
     end
 
     def mqtt_start(otp_password)
+      return unless rate_limit_allowed?
+
       payload = mqtt_payload_base.merge(
         content: "#{input[:proxy_url]}/ssh/jobs/#{input[:job_uuid]}",
         metadata: {
@@ -164,6 +166,11 @@ module Proxy::RemoteExecution::Ssh::Actions
 
     def job_storage
       Proxy::RemoteExecution::Ssh.job_storage
+    end
+
+    def rate_limit_allowed?
+      limit = settings[:pull_rate_limit]
+      limit.nil? || limit > job_storage.running_job_count
     end
 
     def mqtt_payload_base
