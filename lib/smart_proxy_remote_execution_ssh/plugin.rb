@@ -25,6 +25,7 @@ module Proxy::RemoteExecution::Ssh
                      # :mqtt_broker             => nil,
                      # :mqtt_port               => nil,
                      # :mqtt_tls                => nil,
+                     # :pull_rate_limit         => nil,
                      :mode                    => :ssh,
                      :mqtt_resend_interval    => 900
 

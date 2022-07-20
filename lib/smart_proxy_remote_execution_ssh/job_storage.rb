@@ -12,6 +12,7 @@ module Proxy::RemoteExecution::Ssh
         String :execution_plan_uuid, fixed: true, size: 36, null: false, index: true
         Integer :run_step_id, null: false
         String :job, text: true
+        Boolean :running, default: false
       end
     end
 
@@ -36,6 +37,14 @@ module Proxy::RemoteExecution::Ssh
 
     def drop_job(execution_plan_uuid, run_step_id)
       jobs.where(execution_plan_uuid: execution_plan_uuid, run_step_id: run_step_id).delete
+    end
+
+    def mark_as_running(uuid)
+      jobs.where(uuid: uuid).update(running: true)
+    end
+
+    def running_job_count
+      jobs.where(running: true).count
     end
 
     private

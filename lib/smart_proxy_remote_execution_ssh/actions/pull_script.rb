@@ -4,7 +4,7 @@ require 'time'
 
 module Proxy::RemoteExecution::Ssh::Actions
   class PullScript < Proxy::Dynflow::Action::Runner
-    JobDelivered = Class.new
+    JobDelivered = Struct.new(:uuid)
     ResendNotification = Class.new
 
     execution_plan_hooks.use :cleanup, :on => :stopped
@@ -15,8 +15,9 @@ module Proxy::RemoteExecution::Ssh::Actions
     end
 
     def run(event = nil)
-      if event == JobDelivered
+      if event.is_a?(JobDelivered)
         output[:state] = :delivered
+        job_storage.mark_as_running(event.uuid)
         suspend
       elsif event == ResendNotification
         if input[:with_mqtt] && %w(ready_for_pickup notified).include?(output[:state])

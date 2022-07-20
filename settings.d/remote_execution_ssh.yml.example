@@ -36,3 +36,7 @@
 # The notification is sent over mqtt every $mqtt_resend_interval seconds, until
 # the job is picked up by the host or cancelled
 # :mqtt_resend_interval: 900
+
+# Limit the number of jobs the proxy is allowed to run concurrently when using
+# one of the pull modes
+# :pull_rate_limit:

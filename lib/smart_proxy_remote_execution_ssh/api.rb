@@ -62,14 +62,22 @@ module Proxy::RemoteExecution
 
       get "/jobs/:job_uuid" do |job_uuid|
         do_authorize_with_ssl_client
+        rate_limit!
 
         with_authorized_job(job_uuid) do |job_record|
-          notify_job(job_record, Actions::PullScript::JobDelivered)
+          notify_job(job_record, Actions::PullScript::JobDelivered.new(job_record[:uuid]))
           job_record[:job]
         end
       end
 
       private
+
+      def rate_limit!
+        limit = Proxy::RemoteExecution::Ssh::Plugin.settings[:pull_rate_limit]
+        return if limit.nil? || limit > Proxy::RemoteExecution::Ssh.job_storage.running_job_count
+
+        halt 429
+      end
 
       def notify_job(job_record, event)
         world.event(job_record[:execution_plan_uuid], job_record[:run_step_id], event)
