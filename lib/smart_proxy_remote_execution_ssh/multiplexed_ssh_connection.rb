@@ -32,7 +32,7 @@ module Proxy::RemoteExecution::Ssh::Runners
       return [] unless @password
 
       prompt = ['-P', @prompt] if @prompt
-      [{'SSHPASS' => SensitiveString.new(@password)}, '/usr/bin/sshpass', '-e', prompt].compact
+      [{'SSHPASS' => SensitiveString.new(@password)}, 'sshpass', '-e', prompt].compact
     end
 
     def ssh_options
@@ -93,7 +93,7 @@ module Proxy::RemoteExecution::Ssh::Runners
     def command(cmd)
       raise "Cannot build command to run over multiplexed connection without having an established connection" unless connected?
 
-      ['/usr/bin/ssh', reuse_ssh_options, cmd].flatten
+      ['ssh', reuse_ssh_options, cmd].flatten
     end
 
     private
@@ -103,7 +103,7 @@ module Proxy::RemoteExecution::Ssh::Runners
       # does not close its stderr which trips up the process manager which
       # expects all FDs to be closed
 
-      full_command = [method.ssh_command_prefix, '/usr/bin/ssh', establish_ssh_options, method.ssh_options, @host, 'true'].flatten
+      full_command = [method.ssh_command_prefix, 'ssh', establish_ssh_options, method.ssh_options, @host, 'true'].flatten
       log_command(full_command)
       pm = Proxy::Dynflow::ProcessManager.new(full_command)
       pm.start!
@@ -166,7 +166,7 @@ module Proxy::RemoteExecution::Ssh::Runners
     end
 
     def verify_key_passphrase
-      command = ['/usr/bin/ssh-keygen', '-y', '-f', File.expand_path(@client_private_key_file)]
+      command = ['ssh-keygen', '-y', '-f', File.expand_path(@client_private_key_file)]
       log_command(command, label: "Checking if private key has passphrase")
       pm = Proxy::Dynflow::ProcessManager.new(command)
       pm.start!
