@@ -5,6 +5,7 @@ require 'time'
 module Proxy::RemoteExecution::Ssh::Actions
   class PullScript < Proxy::Dynflow::Action::Runner
     JobDelivered = Class.new
+    PickupTimeout = Class.new
 
     execution_plan_hooks.use :cleanup, :on => :stopped
 
@@ -17,6 +18,8 @@ module Proxy::RemoteExecution::Ssh::Actions
       if event == JobDelivered
         output[:state] = :delivered
         suspend
+      elsif event == PickupTimeout
+        process_pickup_timeout
       else
         super
       end
@@ -26,6 +29,8 @@ module Proxy::RemoteExecution::Ssh::Actions
       otp_password = if input[:with_mqtt]
                        ::Proxy::Dynflow::OtpManager.generate_otp(execution_plan_id)
                      end
+
+      plan_event(PickupTimeout, input[:time_to_pickup], optional: true) if input[:time_to_pickup]
 
       input[:job_uuid] = job_storage.store_job(host_name, execution_plan_id, run_step_id, input[:script].tr("\r", ''))
       output[:state] = :ready_for_pickup
@@ -163,6 +168,14 @@ module Proxy::RemoteExecution::Ssh::Actions
         sent: DateTime.now.iso8601,
         directive: 'foreman'
       }
+    end
+
+    def process_pickup_timeout
+      if output[:state] != :delivered
+        raise "The job was not picked up in time"
+      else
+        suspend
+      end
     end
   end
 end
