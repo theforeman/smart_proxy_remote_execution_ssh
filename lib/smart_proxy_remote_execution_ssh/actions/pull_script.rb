@@ -23,6 +23,9 @@ module Proxy::RemoteExecution::Ssh::Actions
       else
         super
       end
+    rescue => e
+      action_logger.error(e)
+      process_update(Proxy::Dynflow::Runner::Update.encode_exception('Proxy error', e))
     end
 
     def init_run
