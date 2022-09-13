@@ -1,7 +1,7 @@
 module Proxy::RemoteExecution::Ssh
   class Plugin < Proxy::Plugin
     SSH_LOG_LEVELS = %w[debug info error fatal].freeze
-    MODES = %i[ssh async-ssh pull pull-mqtt].freeze
+    MODES = %i[ssh ssh-async pull pull-mqtt].freeze
     # Unix domain socket path length is limited to 104 (on some platforms) characters
     # Socket path is composed of custom path (max 49 characters) + job id (37 characters)
     # + offset(17 characters) + null terminator
