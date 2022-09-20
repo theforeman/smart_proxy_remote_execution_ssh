@@ -113,6 +113,10 @@ module Proxy::RemoteExecution::Ssh::Runners
       SCRIPT
     end
 
+    def run_sync(command, stdin = nil)
+      super(command, stdin).tap { @session = nil }
+    end
+
     private
 
     # Generates updates based on the callback data from the manual mode
