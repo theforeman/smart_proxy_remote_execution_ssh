@@ -316,7 +316,7 @@ module Proxy::RemoteExecution::Ssh::Runners
           logger.debug(line.chomp) if user_method.nil? || !user_method.filter_password?(line)
           user_method.on_data(data, pm.stdin) if user_method
         end
-        ''
+        data
       end
       pm.on_stdout(&callback)
       pm.on_stderr(&callback)
