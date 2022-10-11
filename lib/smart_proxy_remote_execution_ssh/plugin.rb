@@ -45,6 +45,10 @@ module Proxy::RemoteExecution::Ssh
       Proxy::RemoteExecution::Ssh.validate!
 
       Proxy::Dynflow::TaskLauncherRegistry.register('ssh', Proxy::Dynflow::TaskLauncher::Batch)
+
+      if settings.mode == :'pull-mqtt'
+        require 'smart_proxy_remote_execution_ssh/mqtt'
+      end
     end
 
     def self.simulate?
