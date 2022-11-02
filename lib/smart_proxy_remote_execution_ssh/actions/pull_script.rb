@@ -111,7 +111,8 @@ module Proxy::RemoteExecution::Ssh::Actions
           'username': execution_plan_id,
           'password': otp_password,
           'return_url': "#{input[:proxy_url]}/ssh/jobs/#{input[:job_uuid]}/update",
-          'version': 'v1'
+          'version': 'v1',
+          'effective_user': input[:effective_user]
         },
       )
       mqtt_notify payload

@@ -170,8 +170,7 @@ module Proxy::RemoteExecution::Ssh
 
           get "/jobs/#{uuid}", {}, 'HTTP_AUTHORIZATION' => "Basic #{auth}"
           _(last_response.status).must_equal 200
-          parsed = MultiJson.load(last_response.body)
-          _(parsed['script']).must_equal content
+          _(last_response.body).must_equal content
 
           Proxy::Dynflow::OtpManager.passwords.delete(execution_plan_uuid)
         end
@@ -184,10 +183,8 @@ module Proxy::RemoteExecution::Ssh
 
           get "/jobs/#{uuid}"
           _(last_response.status).must_equal 200
-          parsed = MultiJson.load(last_response.body)
-          _(parsed['script']).must_equal content
-          _(parsed['effective_user']).must_equal nil
-          _(parsed['version']).must_equal 'v1'
+          _(last_response.body).must_equal content
+          assert_nil last_response.headers['X-Foreman-Effective-User']
         end
 
         it 'returns 404 if there is no content' do
@@ -197,7 +194,7 @@ module Proxy::RemoteExecution::Ssh
           _(last_response.status).must_equal 404
         end
 
-        it 'includes effective user field' do
+        it 'includes effective user header' do
           uuid = SecureRandom.uuid
           Proxy::RemoteExecution::Ssh
             .job_storage
@@ -215,8 +212,7 @@ module Proxy::RemoteExecution::Ssh
 
           get "/jobs/#{uuid}"
           _(last_response.status).must_equal 200
-          parsed = MultiJson.load(last_response.body)
-          _(parsed['effective_user']).must_equal 'toor'
+          _(last_response.headers['X-Foreman-Effective-User']).must_equal 'toor'
         end
       end
 
