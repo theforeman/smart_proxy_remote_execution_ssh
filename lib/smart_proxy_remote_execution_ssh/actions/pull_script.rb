@@ -6,7 +6,6 @@ module Proxy::RemoteExecution::Ssh::Actions
   class PullScript < Proxy::Dynflow::Action::Runner
     JobDelivered = Class.new
     PickupTimeout = Class.new
-    ResendNotification = Class.new
 
     execution_plan_hooks.use :cleanup, :on => :stopped
 
@@ -21,12 +20,6 @@ module Proxy::RemoteExecution::Ssh::Actions
         suspend
       elsif event == PickupTimeout
         process_pickup_timeout
-      elsif event == ResendNotification
-        if input[:with_mqtt] && %w(ready_for_pickup notified).include?(output[:state])
-          schedule_mqtt_resend
-          mqtt_start(::Proxy::Dynflow::OtpManager.passwords[execution_plan_id])
-        end
-        suspend
       else
         super
       end
@@ -45,16 +38,15 @@ module Proxy::RemoteExecution::Ssh::Actions
       input[:job_uuid] = job_storage.store_job(host_name, execution_plan_id, run_step_id, input[:script].tr("\r", ''))
       output[:state] = :ready_for_pickup
       output[:result] = []
-      if input[:with_mqtt]
-        schedule_mqtt_resend
-        mqtt_start(otp_password)
-      end
+
+      mqtt_start(otp_password) if input[:with_mqtt]
       suspend
     end
 
     def cleanup(_plan = nil)
       job_storage.drop_job(execution_plan_id, run_step_id)
       Proxy::Dynflow::OtpManager.passwords.delete(execution_plan_id)
+      Proxy::RemoteExecution::Ssh::MQTT::Dispatcher.instance.done(input[:job_uuid])
     end
 
     def process_external_event(event)
@@ -123,7 +115,7 @@ module Proxy::RemoteExecution::Ssh::Actions
           'return_url': "#{input[:proxy_url]}/ssh/jobs/#{input[:job_uuid]}/update",
         },
       )
-      mqtt_notify payload
+      Proxy::RemoteExecution::Ssh::MQTT::Dispatcher.instance.new(input[:job_uuid], mqtt_topic, payload)
       output[:state] = :notified
     end
 
@@ -139,18 +131,7 @@ module Proxy::RemoteExecution::Ssh::Actions
     end
 
     def mqtt_notify(payload)
-      with_mqtt_client do |c|
-        c.publish(mqtt_topic, JSON.dump(payload), false, 1)
-      end
-    end
-
-    def with_mqtt_client(&block)
-      MQTT::Client.connect(settings.mqtt_broker, settings.mqtt_port,
-                           :ssl => settings.mqtt_tls,
-                           :cert_file => ::Proxy::SETTINGS.foreman_ssl_cert || ::Proxy::SETTINGS.ssl_certificate,
-                           :key_file => ::Proxy::SETTINGS.foreman_ssl_key || ::Proxy::SETTINGS.ssl_private_key,
-                           :ca_file => ::Proxy::SETTINGS.foreman_ssl_ca || ::Proxy::SETTINGS.ssl_ca_file,
-                           &block)
+      Proxy::RemoteExecution::Ssh::MQTT.publish(mqtt_topic, JSON.dump(payload))
     end
 
     def host_name
@@ -163,10 +144,6 @@ module Proxy::RemoteExecution::Ssh::Actions
 
     def mqtt_topic
       "yggdrasil/#{host_name}/data/in"
-    end
-
-    def settings
-      Proxy::RemoteExecution::Ssh::Plugin.settings
     end
 
     def job_storage
@@ -189,10 +166,6 @@ module Proxy::RemoteExecution::Ssh::Actions
       else
         suspend
       end
-    end
-
-    def schedule_mqtt_resend
-      plan_event(ResendNotification, settings[:mqtt_resend_interval], optional: true)
     end
   end
 end

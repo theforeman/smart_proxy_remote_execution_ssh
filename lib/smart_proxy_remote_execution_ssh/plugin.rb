@@ -25,8 +25,10 @@ module Proxy::RemoteExecution::Ssh
                      # :mqtt_broker             => nil,
                      # :mqtt_port               => nil,
                      # :mqtt_tls                => nil,
+                     # :mqtt_rate_limit         => nil
                      :mode                    => :ssh,
-                     :mqtt_resend_interval    => 900
+                     :mqtt_resend_interval    => 900,
+                     :mqtt_ttl                => 5
 
     capability(proc { 'cockpit' if settings.cockpit_integration })
 
@@ -46,6 +48,11 @@ module Proxy::RemoteExecution::Ssh
       Proxy::RemoteExecution::Ssh.validate!
 
       Proxy::Dynflow::TaskLauncherRegistry.register('ssh', Proxy::Dynflow::TaskLauncher::Batch)
+      if settings.mode == :'pull-mqtt'
+        require 'smart_proxy_remote_execution_ssh/mqtt'
+        # Force initialization
+        Proxy::RemoteExecution::Ssh::MQTT::Dispatcher.instance
+      end
     end
 
     def self.simulate?

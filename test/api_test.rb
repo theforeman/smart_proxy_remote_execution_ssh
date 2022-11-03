@@ -27,6 +27,13 @@ module Proxy::RemoteExecution::Ssh
 
     let(:app) { Proxy::RemoteExecution::Ssh::Api.new }
 
+    def setup
+      super
+      dispatcher = mock
+      dispatcher.stubs(:running)
+      ::Proxy::RemoteExecution::Ssh::MQTT::Dispatcher.stubs(:instance).returns(dispatcher)
+    end
+
     describe '/pubkey' do
       it 'returns the content of the public key' do
         get '/pubkey'
