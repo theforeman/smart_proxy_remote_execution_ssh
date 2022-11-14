@@ -184,6 +184,7 @@ module Proxy::RemoteExecution::Ssh
           get "/jobs/#{uuid}"
           _(last_response.status).must_equal 200
           _(last_response.body).must_equal content
+          assert_nil last_response.headers['X-Foreman-Effective-User']
         end
 
         it 'returns 404 if there is no content' do
@@ -191,6 +192,27 @@ module Proxy::RemoteExecution::Ssh
 
           get '/jobs/12345'
           _(last_response.status).must_equal 404
+        end
+
+        it 'includes effective user header' do
+          uuid = SecureRandom.uuid
+          Proxy::RemoteExecution::Ssh
+            .job_storage
+            .store_job(hostname,
+                       execution_plan_uuid,
+                       run_step_id,
+                       content,
+                       uuid: uuid,
+                       effective_user: 'toor')
+
+          Proxy::RemoteExecution::Ssh::Api.any_instance.expects(:https_cert_cn).returns(hostname)
+          fake_world = mock
+          fake_world.stubs(:event)
+          Proxy::RemoteExecution::Ssh::Api.any_instance.expects(:world).returns(fake_world)
+
+          get "/jobs/#{uuid}"
+          _(last_response.status).must_equal 200
+          _(last_response.headers['X-Foreman-Effective-User']).must_equal 'toor'
         end
       end
 
