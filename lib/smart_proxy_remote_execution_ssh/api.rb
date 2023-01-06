@@ -71,6 +71,14 @@ module Proxy::RemoteExecution
         end
       end
 
+      get "/jobs/:job_uuid/cancel" do |job_uuid|
+        do_authorize_with_ssl_client
+
+        with_authorized_job(job_uuid) do |job_record|
+          {}
+        end
+      end
+
       private
 
       def notify_job(job_record, event)
