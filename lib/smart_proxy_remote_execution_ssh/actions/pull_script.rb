@@ -4,8 +4,19 @@ require 'time'
 
 module Proxy::RemoteExecution::Ssh::Actions
   class PullScript < Proxy::Dynflow::Action::Runner
+    include ::Dynflow::Action::Timeouts
+
     JobDelivered = Class.new
     PickupTimeout = Class.new
+
+    # The proxy has the job stored in its job storage
+    READY_FOR_PICKUP = 'ready_for_pickup'
+    # The host was notified over MQTT at least once
+    NOTIFIED = 'notified'
+    # The host has picked up the job
+    DELIVERED = 'delivered'
+    # We received at least one output from the host
+    RUNNING = 'running'
 
     execution_plan_hooks.use :cleanup, :on => :stopped
 
@@ -16,14 +27,22 @@ module Proxy::RemoteExecution::Ssh::Actions
 
     def run(event = nil)
       if event == JobDelivered
-        output[:state] = :delivered
+        output[:state] = DELIVERED
         suspend
       elsif event == PickupTimeout
         process_pickup_timeout
+      elsif event == ::Dynflow::Action::Timeouts::Timeout
+        process_timeout
+      elsif event.nil?
+        if (timeout = input['execution_timeout_interval'])
+          schedule_timeout(timeout, optional: true)
+        end
+        super
       else
         super
       end
     rescue => e
+      cleanup
       action_logger.error(e)
       process_update(Proxy::Dynflow::Runner::Update.encode_exception('Proxy error', e))
     end
@@ -36,7 +55,7 @@ module Proxy::RemoteExecution::Ssh::Actions
       plan_event(PickupTimeout, input[:time_to_pickup], optional: true) if input[:time_to_pickup]
 
       input[:job_uuid] = job_storage.store_job(host_name, execution_plan_id, run_step_id, input[:script].tr("\r", ''), effective_user: input[:effective_user])
-      output[:state] = :ready_for_pickup
+      output[:state] = READY_FOR_PICKUP
       output[:result] = []
 
       mqtt_start(otp_password) if input[:with_mqtt]
@@ -50,7 +69,7 @@ module Proxy::RemoteExecution::Ssh::Actions
     end
 
     def process_external_event(event)
-      output[:state] = :running
+      output[:state] = RUNNING
       data = event.data
       case data['version']
       when nil
@@ -89,19 +108,34 @@ module Proxy::RemoteExecution::Ssh::Actions
       process_update(Proxy::Dynflow::Runner::Update.new(continuous_output, exit_code))
     end
 
-    def kill_run
+    def process_timeout
+      kill_run "Execution timeout exceeded"
+    end
+
+    def kill_run(fail_msg = 'The job was cancelled by the user')
+      continuous_output = Proxy::Dynflow::ContinuousOutput.new
+      exit_code = nil
+
       case output[:state]
-      when :ready_for_pickup
+      when READY_FOR_PICKUP, NOTIFIED
         # If the job is not running yet on the client, wipe it from storage
         cleanup
-        # TODO: Stop the action
-      when :notified, :running
+        exit_code = 'EXCEPTION'
+      when DELIVERED, RUNNING
         # Client was notified or is already running, dealing with this situation
         # is only supported if mqtt is available
         # Otherwise we have to wait it out
-        mqtt_cancel if input[:with_mqtt]
+        if input[:with_mqtt]
+          mqtt_cancel 
+          fail_msg += ', notifying the host over MQTT'
+        else
+          fail_msg += ', however the job was triggered without MQTT and cannot be stopped'
+        end
       end
-      suspend
+      continuous_output.add_output(fail_msg + "\n")
+      process_update(Proxy::Dynflow::Runner::Update.new(continuous_output, exit_code))
+
+      suspend unless exit_code
     end
 
     def mqtt_start(otp_password)
@@ -118,12 +152,12 @@ module Proxy::RemoteExecution::Ssh::Actions
         },
       )
       Proxy::RemoteExecution::Ssh::MQTT::Dispatcher.instance.new(input[:job_uuid], mqtt_topic, payload)
-      output[:state] = :notified
+      output[:state] = NOTIFIED
     end
 
     def mqtt_cancel
-      cleanup
       payload = mqtt_payload_base.merge(
+        content: "#{input[:proxy_url]}/ssh/jobs/#{input[:job_uuid]}/cancel",
         metadata: {
           'event': 'cancel',
           'job_uuid': input[:job_uuid]
@@ -163,11 +197,9 @@ module Proxy::RemoteExecution::Ssh::Actions
     end
 
     def process_pickup_timeout
-      if output[:state] != :delivered
-        raise "The job was not picked up in time"
-      else
-        suspend
-      end
+      suspend unless [READY_FOR_PICKUP, NOTIFIED].include? output[:state]
+
+      kill_run 'The job was not picked up in time'
     end
   end
 end
