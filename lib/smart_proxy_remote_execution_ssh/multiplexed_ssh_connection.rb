@@ -154,6 +154,8 @@ module Proxy::RemoteExecution::Ssh::Runners
       ssh_options << "-o ControlPath=#{socket_file}"
       ssh_options << "-o ControlPersist=yes"
       ssh_options << "-o ProxyCommand=none"
+      ssh_options << "-o ServerAliveInterval=15"
+      ssh_options << "-o ServerAliveCountMax=3" # This is the default, but let's be explicit
       @establish_ssh_options = ssh_options
     end
 
