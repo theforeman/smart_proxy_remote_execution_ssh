@@ -64,7 +64,9 @@ module Proxy::RemoteExecution
         do_authorize_with_ssl_client
 
         with_authorized_job(job_uuid) do |job_record|
-          Proxy::RemoteExecution::Ssh::MQTT::Dispatcher.instance.running(job_record[:uuid])
+          if Proxy::RemoteExecution::Ssh::Plugin.with_mqtt?
+            Proxy::RemoteExecution::Ssh::MQTT::Dispatcher.instance.running(job_record[:uuid])
+          end
           notify_job(job_record, Actions::PullScript::JobDelivered)
           response.headers['X-Foreman-Effective-User'] = job_record[:effective_user]
           job_record[:job]
