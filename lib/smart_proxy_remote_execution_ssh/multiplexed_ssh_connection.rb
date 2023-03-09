@@ -103,7 +103,8 @@ module Proxy::RemoteExecution::Ssh::Runners
       # does not close its stderr which trips up the process manager which
       # expects all FDs to be closed
 
-      full_command = [method.ssh_command_prefix, 'ssh', establish_ssh_options, method.ssh_options, @host, 'true'].flatten
+      full_command = [method.ssh_command_prefix, 'ssh', establish_ssh_options, method.ssh_options, @host,
+                      'true'].flatten
       log_command(full_command)
       pm = Proxy::Dynflow::ProcessManager.new(full_command)
       pm.start!

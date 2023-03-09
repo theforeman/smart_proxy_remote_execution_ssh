@@ -54,7 +54,9 @@ module Proxy::RemoteExecution::Ssh::Actions
 
       plan_event(PickupTimeout, input[:time_to_pickup], optional: true) if input[:time_to_pickup]
 
-      input[:job_uuid] = job_storage.store_job(host_name, execution_plan_id, run_step_id, input[:script].tr("\r", ''), effective_user: input[:effective_user])
+      input[:job_uuid] = 
+        job_storage.store_job(host_name, execution_plan_id, run_step_id, input[:script].tr("\r", ''), 
+                              effective_user: input[:effective_user])
       output[:state] = READY_FOR_PICKUP
       output[:result] = []
 
@@ -83,7 +85,11 @@ module Proxy::RemoteExecution::Ssh::Actions
 
     def process_external_unversioned(payload)
       continuous_output = Proxy::Dynflow::ContinuousOutput.new
-      Array(payload['output']).each { |line| continuous_output.add_output(line, payload['type']) } if payload.key?('output')
+      if payload.key?('output')
+        Array(payload['output']).each do |line|
+          continuous_output.add_output(line, payload['type'])
+        end
+      end
       exit_code = payload['exit_code'].to_i if payload['exit_code']
       process_update(Proxy::Dynflow::Runner::Update.new(continuous_output, exit_code))
     end

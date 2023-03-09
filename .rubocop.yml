@@ -26,6 +26,7 @@ Layout/FirstArgumentIndentation:
 
 Layout/LineLength:
   Max: 120
+  Enabled: false
 
 Lint/AmbiguousRegexpLiteral:
   Enabled: false
@@ -46,6 +47,7 @@ Metrics/ClassLength:
   Max: 130
   Exclude:
     - 'test/**/*'
+  Enabled: false
 
 Metrics/CyclomaticComplexity:
   Max: 15
