@@ -90,7 +90,6 @@ module Proxy::RemoteExecution::Ssh::Runners
     def reset; end
   end
 
-  # rubocop:disable Metrics/ClassLength
   class ScriptRunner < Proxy::Dynflow::Runner::Base
     include Proxy::Dynflow::Runner::ProcessManagerCommand
     include CommandLogging
@@ -180,7 +179,10 @@ module Proxy::RemoteExecution::Ssh::Runners
       @output_path = File.join(File.dirname(@remote_script), 'output')
       @exit_code_path = File.join(File.dirname(@remote_script), 'exit_code')
       @pid_path = File.join(File.dirname(@remote_script), 'pid')
-      @remote_script_wrapper = upload_data("echo $$ > #{@pid_path}; exec \"$@\";", File.join(File.dirname(@remote_script), 'script-wrapper'), 555)
+      @remote_script_wrapper = upload_data(
+        "echo $$ > #{@pid_path}; exec \"$@\";",
+        File.join(File.dirname(@remote_script), 'script-wrapper'),
+        555)
     end
 
     # the script that initiates the execution
@@ -394,5 +396,4 @@ module Proxy::RemoteExecution::Ssh::Runners
       end
     end
   end
-  # rubocop:enable Metrics/ClassLength
 end

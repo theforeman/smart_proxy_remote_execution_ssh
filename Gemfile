@@ -10,6 +10,8 @@ end
 group :test do
   gem 'public_suffix'
   gem 'rack-test'
+  gem 'rubocop', '~> 1.28.0'
+  gem 'rubocop-performance', require: false
 end
 
 gem 'sinatra'
