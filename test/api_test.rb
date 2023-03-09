@@ -41,54 +41,6 @@ module Proxy::RemoteExecution::Ssh
       end
     end
 
-    def with_known_hosts
-      host_file = Tempfile.new('ssh_test')
-      host_file.write(KNOWN_HOSTS)
-      host_file.close
-      Net::SSH::KnownHosts.stubs(:hostfiles).returns([host_file.path])
-      yield host_file.path
-    ensure
-      host_file.unlink
-    end
-
-    describe '/known_hosts/:name' do
-      it 'returns 204 if there are no known public keys for the given host' do
-        Net::SSH::KnownHosts.expects(:search_for).with('host.example.com').returns([])
-        delete '/known_hosts/host.example.com'
-        _(last_response.status).must_equal 204
-      end
-
-      it "removes host's keys by ip" do
-        with_known_hosts do |host_file|
-          host = '192.168.122.235'
-          delete "/known_hosts/#{host}"
-          lines = File.readlines(host_file)
-          _(lines.count).must_equal KNOWN_HOSTS.lines.count - 1
-          assert lines.select { |line| line.include? host }.empty?
-        end
-      end
-
-      it "removes host's keys by hostname" do
-        with_known_hosts do |host_file|
-          host = 'foreman-katello-115'
-          delete "/known_hosts/#{host}"
-          lines = File.readlines(host_file)
-          _(lines.count).must_equal KNOWN_HOSTS.lines.count - 1
-          assert lines.select { |line| line.include? host }.empty?
-        end
-      end
-
-      it "removes host's keys by hostname and ip" do
-        with_known_hosts do |host_file|
-          host = 'c7s62.lxc,192.168.122.200'
-          delete "/known_hosts/#{host}"
-          lines = File.readlines(host_file)
-          _(lines.count).must_equal KNOWN_HOSTS.lines.count - 1
-          assert lines.select { |line| line.include? host }.empty?
-        end
-      end
-    end
-
     describe 'job storage' do
       let(:uuid) { SecureRandom.uuid }
       let(:execution_plan_uuid) { SecureRandom.uuid }
