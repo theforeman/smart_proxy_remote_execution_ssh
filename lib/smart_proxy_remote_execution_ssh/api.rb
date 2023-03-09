@@ -27,7 +27,7 @@ module Proxy::RemoteExecution
 
       # Payload is a hash where
       # exit_code: Integer | NilClass
-      # output: String
+      # output: any, depends on the action consuming the data
       post '/jobs/:job_uuid/update' do |job_uuid|
         do_authorize_with_ssl_client
 
