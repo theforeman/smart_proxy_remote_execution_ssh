@@ -64,7 +64,7 @@ module Proxy::RemoteExecution
         do_authorize_with_ssl_client
 
         with_authorized_job(job_uuid) do |job_record|
-          if Proxy::RemoteExecution::Ssh::Plugin.with_mqtt?
+          if Proxy::RemoteExecution::Ssh.with_mqtt?
             Proxy::RemoteExecution::Ssh::MQTT::Dispatcher.instance.running(job_record[:uuid])
           end
           notify_job(job_record, Actions::PullScript::JobDelivered)
@@ -96,9 +96,7 @@ module Proxy::RemoteExecution
       end
 
       def authorized_job(uuid)
-        job_record = Proxy::RemoteExecution::Ssh.job_storage.find_job(uuid) || {}
-        return job_record if authorize_with_token(clear: false, task_id: job_record[:execution_plan_uuid]) ||
-                             job_record[:hostname] == https_cert_cn
+        Proxy::RemoteExecution::Ssh.job_storage.find_job(uuid, https_cert_cn)
       end
     end
   end

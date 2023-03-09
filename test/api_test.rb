@@ -126,22 +126,6 @@ module Proxy::RemoteExecution::Ssh
           _(last_response.status).must_equal 404
         end
 
-        it 'supports http basic auth' do
-          pass = Proxy::Dynflow::OtpManager.generate_otp(execution_plan_uuid)
-          auth = Proxy::Dynflow::OtpManager.tokenize(execution_plan_uuid, pass)
-
-          fake_world = mock
-          fake_world.expects(:event) do |task_id, step_id, _payload|
-            task_id == execution_plan_uuid && step_id == run_step_id
-          end
-          Proxy::RemoteExecution::Ssh::Api.any_instance.expects(:world).returns(fake_world)
-
-          post "/jobs/#{uuid}/update", '{}', 'HTTP_AUTHORIZATION' => "Basic #{auth}"
-          _(last_response.status).must_equal 200
-
-          Proxy::Dynflow::OtpManager.passwords.delete(execution_plan_uuid)
-        end
-
         it 'dispatches an event' do
           Proxy::RemoteExecution::Ssh::Api.any_instance.expects(:https_cert_cn).returns(hostname)
           fake_world = mock
@@ -165,21 +149,6 @@ module Proxy::RemoteExecution::Ssh
           auth = Proxy::Dynflow::OtpManager.tokenize('username', 'password')
           get '/jobs/12345', {}, 'HTTP_AUTHORIZATION' => "Basic #{auth}"
           _(last_response.status).must_equal 403
-        end
-
-        it 'returns content if there is some and notifies the action when using password' do
-          pass = Proxy::Dynflow::OtpManager.generate_otp(execution_plan_uuid)
-          auth = Proxy::Dynflow::OtpManager.tokenize(execution_plan_uuid, pass)
-
-          fake_world = mock
-          fake_world.expects(:event).with(execution_plan_uuid, run_step_id, Actions::PullScript::JobDelivered)
-          Proxy::RemoteExecution::Ssh::Api.any_instance.expects(:world).returns(fake_world)
-
-          get "/jobs/#{uuid}", {}, 'HTTP_AUTHORIZATION' => "Basic #{auth}"
-          _(last_response.status).must_equal 200
-          _(last_response.body).must_equal content
-
-          Proxy::Dynflow::OtpManager.passwords.delete(execution_plan_uuid)
         end
 
         it 'returns content if there is some and notifies the action' do
