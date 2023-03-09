@@ -68,7 +68,7 @@ module Proxy::RemoteExecution
             Proxy::RemoteExecution::Ssh::MQTT::Dispatcher.instance.running(job_record[:uuid])
           end
           notify_job(job_record, Actions::PullScript::JobDelivered)
-          response.headers['X-Foreman-Effective-User'] = job_record[:effective_user]
+          response.headers['X-Foreman-Effective-User'] = job_record[:effective_user] if job_record[:effective_user]
           job_record[:job]
         end
       end
