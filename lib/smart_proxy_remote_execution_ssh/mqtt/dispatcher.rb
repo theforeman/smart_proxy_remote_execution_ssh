@@ -2,15 +2,39 @@ require 'concurrent'
 require 'mqtt'
 
 class Proxy::RemoteExecution::Ssh::MQTT
+  class DispatcherSupervisor < Concurrent::Actor::RestartingContext
+    def initialize
+      limit = Proxy::RemoteExecution::Ssh::Plugin.settings[:mqtt_rate_limit]
+      @dispatcher = DispatcherActor.spawn('MQTT dispatcher',
+                                          Proxy::Dynflow::Core.world.clock,
+                                          limit)
+    end
+
+    def on_message(message)
+      case message
+      when :dispatcher_reference
+        @dispatcher
+      when :resumed
+        # Carry on
+      else
+        pass
+      end
+    end
+
+    # In case an exception is raised during processing, instruct concurrent-ruby
+    # to keep going without losing state
+    def behaviour_definition
+      Concurrent::Actor::Behaviour.restarting_behaviour_definition(:resume!)
+    end
+  end
+
   class Dispatcher
     include Singleton
 
     attr_reader :reference
     def initialize
-      limit = Proxy::RemoteExecution::Ssh::Plugin.settings[:mqtt_rate_limit]
-      @reference = DispatcherActor.spawn('MQTT dispatcher',
-                                         Proxy::Dynflow::Core.world.clock,
-                                         limit)
+      @supervisor = DispatcherSupervisor.spawn(name: 'RestartingSupervisor', args: [])
+      @reference = @supervisor.ask!(:dispatcher_reference)
     end
 
     def new(uuid, topic, payload)
@@ -158,12 +182,6 @@ class Proxy::RemoteExecution::Ssh::MQTT
 
     def timer_off
       @timer.shutdown
-    end
-
-    # In case an exception is raised during processing, instruct concurrent-ruby
-    # to keep going without losing state
-    def behaviour_definition
-      Concurrent::Actor::Behaviour.restarting_behaviour_definition(:resume!)
     end
   end
 end
