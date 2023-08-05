@@ -24,7 +24,7 @@ Gem::Specification.new do |gem|
   gem.add_development_dependency "bundler"
   gem.add_development_dependency "rake"
   gem.add_development_dependency('minitest')
-  gem.add_development_dependency('mocha', '~> 1')
+  gem.add_development_dependency('mocha', '~> 2.0')
   gem.add_development_dependency('webmock', '~> 1')
   gem.add_development_dependency('rack-test', '~> 0')
   gem.add_development_dependency('rubocop', '~> 0.82.0')

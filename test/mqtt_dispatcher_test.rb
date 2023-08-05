@@ -2,7 +2,7 @@ require 'test_helper'
 require 'smart_proxy_remote_execution_ssh/mqtt'
 
 module Proxy::RemoteExecution::Ssh
-  class MQTTDispatcherTest < MiniTest::Spec
+  class MQTTDispatcherTest < Minitest::Spec
     # The tracker dispatches jobs automatically which is what we want when live,
     # but it makes it harder to make assertions about its state. This subclass
     # disables the automatic dispatching and allows us to trigger it by hand,
