@@ -22,7 +22,7 @@ foreman-katello-115,192.168.122.235 ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlz
 EOF
 
 module Proxy::RemoteExecution::Ssh
-  class ApiTest < MiniTest::Spec
+  class ApiTest < Minitest::Spec
     include Rack::Test::Methods
 
     let(:app) { Proxy::RemoteExecution::Ssh::Api.new }
