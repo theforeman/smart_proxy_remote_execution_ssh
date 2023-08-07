@@ -161,17 +161,19 @@ module Proxy::RemoteExecution::Ssh::Runners
     end
 
     def preflight_checks
-      ensure_remote_command(cp_script_to_remote("#!/bin/sh\nexec true", 'test'),
+      script = cp_script_to_remote("#!/bin/sh\nexec true")
+      ensure_remote_command(script,
         error: 'Failed to execute script on remote machine, exit code: %{exit_code}.'
       )
       unless @user_method.is_a? NoopUserMethod
-        path = cp_script_to_remote("#!/bin/sh\nexec #{@user_method.cli_command_prefix} true", 'effective-user-test')
-        ensure_remote_command(path,
+        ensure_remote_command("#{@user_method.cli_command_prefix} #{script}",
                               error: 'Failed to change to effective user, exit code: %{exit_code}',
                               tty: true,
                               user_method: @user_method,
                               close_stdin: false)
       end
+      # The path should already be escaped
+      ensure_remote_command("rm #{script}")
     end
 
     def prepare_start
