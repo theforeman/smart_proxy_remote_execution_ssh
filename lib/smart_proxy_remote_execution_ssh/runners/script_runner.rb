@@ -194,7 +194,11 @@ module Proxy::RemoteExecution::Ssh::Runners
         #{@remote_script_wrapper} #{@user_method.cli_command_prefix}#{su_method ? "'#{@remote_script} < /dev/null '" : "#{@remote_script} < /dev/null"}
         echo \\$?>#{@exit_code_path}
         EOF
-        exit $(cat #{@exit_code_path})
+        if [ -f #{@exit_code_path} ] && [ $(wc -l < #{@exit_code_path}) -gt 0 ]; then
+          exit $(cat #{@exit_code_path})
+        else
+          exit 1
+        fi
       SCRIPT
     end
 
