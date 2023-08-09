@@ -148,7 +148,7 @@ module Proxy::RemoteExecution::Ssh::Runners
       ssh_options << "-o Port=#{@ssh_port}" if @ssh_port
       ssh_options << "-o IdentityFile=#{@client_private_key_file}" if @client_private_key_file
       ssh_options << "-o IdentitiesOnly=yes"
-      ssh_options << "-o StrictHostKeyChecking=no"
+      ssh_options << "-o StrictHostKeyChecking=accept-new"
       ssh_options << "-o UserKnownHostsFile=#{prepare_known_hosts}" if @host_public_key
       ssh_options << "-o LogLevel=#{ssh_log_level(true)}"
       ssh_options << "-o ControlMaster=auto"
