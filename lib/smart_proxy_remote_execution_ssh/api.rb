@@ -67,6 +67,7 @@ module Proxy::RemoteExecution
           Proxy::RemoteExecution::Ssh::MQTT::Dispatcher.instance.running(job_record[:uuid])
           notify_job(job_record, Actions::PullScript::JobDelivered)
           response.headers['X-Foreman-Effective-User'] = job_record[:effective_user]
+          response.headers['X-Foreman-Working-Directory'] = Proxy::RemoteExecution::Ssh::Plugin.settings[:remote_working_dir]
           job_record[:job]
         end
       end

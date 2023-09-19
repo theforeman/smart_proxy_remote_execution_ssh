@@ -154,7 +154,8 @@ module Proxy::RemoteExecution::Ssh::Actions
           'password': otp_password,
           'return_url': "#{input[:proxy_url]}/ssh/jobs/#{input[:job_uuid]}/update",
           'version': 'v1',
-          'effective_user': input[:effective_user]
+          'effective_user': input[:effective_user],
+          'working_directory': Proxy::RemoteExecution::Ssh::Plugin.settings[:remote_working_dir]
         },
       )
       Proxy::RemoteExecution::Ssh::MQTT::Dispatcher.instance.new(input[:job_uuid], mqtt_topic, payload)
