@@ -69,9 +69,9 @@ module Proxy::RemoteExecution::Ssh::Runners
     def establish!
       @available_auth_methods ||= available_authentication_methods
       method = @available_auth_methods.find do |method|
-        result, pm = try_auth_method(method)
+        pm = try_auth_method(method)
         method.errors = pm.stderr
-        if result
+        if pm.status.zero?
           @available_auth_methods.unshift(method).uniq!
           true
         end
@@ -127,11 +127,10 @@ module Proxy::RemoteExecution::Ssh::Runners
       if pm.status.zero?
         logger.debug("Established connection using authentication method #{method.name}")
         @socket = socket_file
-        [true, pm]
       else
         logger.debug("Failed to establish connection using authentication method #{method.name}")
-        [false, pm]
       end
+      pm
     end
 
     def settings
