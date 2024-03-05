@@ -44,7 +44,7 @@ module Proxy::RemoteExecution
       end
 
       def validate_mqtt_settings!
-        return unless Plugin.settings.mode == :'pull-mqtt'
+        return unless with_mqtt?
 
         raise 'mqtt_broker has to be set when pull-mqtt mode is used' if Plugin.settings.mqtt_broker.nil?
         raise 'mqtt_port has to be set when pull-mqtt mode is used' if Plugin.settings.mqtt_port.nil?
@@ -109,6 +109,10 @@ module Proxy::RemoteExecution
 
       def job_storage
         @job_storage ||= Proxy::RemoteExecution::Ssh::JobStorage.new
+      end
+
+      def with_mqtt?
+        Proxy::RemoteExecution::Ssh::Plugin.settings.mode == :'pull-mqtt'
       end
     end
   end

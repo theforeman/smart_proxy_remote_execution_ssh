@@ -40,7 +40,6 @@ module Proxy::RemoteExecution::Ssh
       require 'smart_proxy_remote_execution_ssh/api'
       require 'smart_proxy_remote_execution_ssh/actions'
       require 'smart_proxy_remote_execution_ssh/dispatcher'
-      require 'smart_proxy_remote_execution_ssh/log_filter'
       require 'smart_proxy_remote_execution_ssh/runners'
       require 'smart_proxy_remote_execution_ssh/utils'
       require 'smart_proxy_remote_execution_ssh/job_storage'
@@ -48,7 +47,7 @@ module Proxy::RemoteExecution::Ssh
       Proxy::RemoteExecution::Ssh.validate!
 
       Proxy::Dynflow::TaskLauncherRegistry.register('ssh', Proxy::Dynflow::TaskLauncher::Batch)
-      if settings.mode == :'pull-mqtt'
+      if Proxy::RemoteExecution::Ssh.with_mqtt?
         require 'smart_proxy_remote_execution_ssh/mqtt'
         # Force initialization
         Proxy::RemoteExecution::Ssh::MQTT::Dispatcher.instance
