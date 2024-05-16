@@ -21,6 +21,8 @@ Gem::Specification.new do |gem|
   gem.require_paths    = ["lib"]
   gem.license = 'GPL-3.0'
 
+  gem.required_ruby_version = '>= 2.7.0'
+
   gem.add_development_dependency("rake", '~> 13.0')
   gem.add_development_dependency('minitest', '~> 5.23')
   gem.add_development_dependency('mocha', '~> 2.0')
