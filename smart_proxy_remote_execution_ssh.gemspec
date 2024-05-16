@@ -21,15 +21,14 @@ Gem::Specification.new do |gem|
   gem.require_paths    = ["lib"]
   gem.license = 'GPL-3.0'
 
-  gem.add_development_dependency "bundler"
-  gem.add_development_dependency "rake"
-  gem.add_development_dependency('minitest')
+  gem.add_development_dependency("rake", '~> 13.0')
+  gem.add_development_dependency('minitest', '~> 5.23')
   gem.add_development_dependency('mocha', '~> 2.0')
   gem.add_development_dependency('webmock', '~> 1')
   gem.add_development_dependency('rack-test', '~> 0')
   gem.add_development_dependency('rubocop', '~> 0.82.0')
 
   gem.add_runtime_dependency('smart_proxy_dynflow', '~> 0.8')
-  gem.add_runtime_dependency('net-ssh', '>= 4.2.0')
-  gem.add_runtime_dependency('mqtt')
+  gem.add_runtime_dependency('net-ssh', '~> 7.2')
+  gem.add_runtime_dependency('mqtt', '~> 0.5')
 end
