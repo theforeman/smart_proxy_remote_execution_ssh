@@ -10,8 +10,7 @@ module Proxy::RemoteExecution::Ssh
         when :ssh, :'ssh-async'
           plan_action(ScriptRunner, *args)
         when :pull, :'pull-mqtt'
-          plan_action(PullScript, *args,
-                      mqtt: mode == :'pull-mqtt')
+          plan_action(PullScript, *args)
         end
       end
     end
