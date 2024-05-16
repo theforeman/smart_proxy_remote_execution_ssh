@@ -20,9 +20,9 @@ module Proxy::RemoteExecution::Ssh::Actions
 
     execution_plan_hooks.use :cleanup, :on => :stopped
 
-    def plan(action_input, mqtt: false)
+    def plan(action_input)
       super(action_input)
-      input[:with_mqtt] = mqtt
+      input[:with_mqtt] = Proxy::RemoteExecution::Ssh::Plugin.settings.mode == :'pull-mqtt'
     end
 
     def run(event = nil)
