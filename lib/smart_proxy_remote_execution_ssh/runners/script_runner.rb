@@ -99,6 +99,8 @@ module Proxy::RemoteExecution::Ssh::Runners
     EXPECTED_POWER_ACTION_MESSAGES = ['restart host', 'shutdown host'].freeze
     DEFAULT_REFRESH_INTERVAL = 1
 
+    UNSHARE_PREFIX = 'unshare --fork --kill-child'.freeze
+
     def initialize(options, user_method, suspended_action: nil)
       super suspended_action: suspended_action
       @host = options.fetch(:hostname)
@@ -116,6 +118,7 @@ module Proxy::RemoteExecution::Ssh::Runners
       @first_execution = options.fetch(:first_execution, false)
       @user_method = user_method
       @options = options
+      @supports_unshare = false
     end
 
     def self.build(options, suspended_action:)
@@ -147,6 +150,7 @@ module Proxy::RemoteExecution::Ssh::Runners
       @connection = MultiplexedSSHConnection.new(@options.merge(:id => @id), logger: logger)
       @connection.establish!
       preflight_checks
+      detect_capabilities
       prepare_start
       script = initialization_script
       logger.debug("executing script:\n#{indent_multiline(script)}")
@@ -158,6 +162,16 @@ module Proxy::RemoteExecution::Ssh::Runners
 
     def trigger(*args)
       run_async(*args)
+    end
+
+    def detect_capabilities
+      script = cp_script_to_remote("#!/bin/sh\nexec #{UNSHARE_PREFIX} true")
+      begin
+        ensure_remote_command(script)
+        @supports_unshare = true
+      rescue; end
+      # The path should already be escaped
+      ensure_remote_command("rm #{script}")
     end
 
     def preflight_checks
@@ -182,7 +196,7 @@ module Proxy::RemoteExecution::Ssh::Runners
       @exit_code_path = File.join(File.dirname(@remote_script), 'exit_code')
       @pid_path = File.join(File.dirname(@remote_script), 'pid')
       @remote_script_wrapper = upload_data(
-        "echo $$ > #{@pid_path}; exec \"$@\";",
+        "echo $$ > #{@pid_path}; exec #{@supports_unshare ? UNSHARE_PREFIX : ''} \"$@\";",
         File.join(File.dirname(@remote_script), 'script-wrapper'),
         555)
     end
