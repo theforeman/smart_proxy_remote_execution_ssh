@@ -247,6 +247,7 @@ module Proxy::RemoteExecution::Ssh::Runners
 
     def publish_data(data, type, pm = nil)
       pm ||= @process_manager
+      data = data.dup if data.frozen?
       super(data.force_encoding('UTF-8'), type) unless @user_method.filter_password?(data)
       @user_method.on_data(data, pm.stdin) if pm
     end
