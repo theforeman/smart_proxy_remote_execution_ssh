@@ -16,8 +16,8 @@ module Proxy::RemoteExecution::Ssh
       end
     end
 
-    def find_job(uuid)
-      jobs.where(uuid: uuid).first
+    def find_job(uuid, hostname)
+      jobs.where(uuid: uuid, hostname: hostname).first
     end
 
     def job_uuids_for_host(hostname)

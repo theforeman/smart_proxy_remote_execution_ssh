@@ -22,7 +22,6 @@ module Proxy::RemoteExecution::Ssh::Actions
 
     def plan(action_input)
       super(action_input)
-      input[:with_mqtt] = Proxy::RemoteExecution::Ssh::Plugin.settings.mode == :'pull-mqtt'
     end
 
     def run(event = nil)
@@ -48,10 +47,6 @@ module Proxy::RemoteExecution::Ssh::Actions
     end
 
     def init_run
-      otp_password = if input[:with_mqtt]
-                       ::Proxy::Dynflow::OtpManager.generate_otp(execution_plan_id)
-                     end
-
       plan_event(PickupTimeout, input[:time_to_pickup], optional: true) if input[:time_to_pickup]
 
       input[:job_uuid] = 
@@ -60,14 +55,13 @@ module Proxy::RemoteExecution::Ssh::Actions
       output[:state] = READY_FOR_PICKUP
       output[:result] = []
 
-      mqtt_start(otp_password) if input[:with_mqtt]
+      mqtt_start if with_mqtt?
       suspend
     end
 
     def cleanup(_plan = nil)
       job_storage.drop_job(execution_plan_id, run_step_id)
-      Proxy::Dynflow::OtpManager.passwords.delete(execution_plan_id)
-      Proxy::RemoteExecution::Ssh::MQTT::Dispatcher.instance.done(input[:job_uuid])
+      Proxy::RemoteExecution::Ssh::MQTT::Dispatcher.instance.done(input[:job_uuid]) if with_mqtt?
     end
 
     def process_external_event(event)
@@ -131,7 +125,7 @@ module Proxy::RemoteExecution::Ssh::Actions
         # Client was notified or is already running, dealing with this situation
         # is only supported if mqtt is available
         # Otherwise we have to wait it out
-        if input[:with_mqtt]
+        if with_mqtt?
           mqtt_cancel 
           fail_msg += ', notifying the host over MQTT'
         else
@@ -144,14 +138,12 @@ module Proxy::RemoteExecution::Ssh::Actions
       suspend unless exit_code
     end
 
-    def mqtt_start(otp_password)
+    def mqtt_start
       payload = mqtt_payload_base.merge(
         content: "#{input[:proxy_url]}/ssh/jobs/#{input[:job_uuid]}",
         metadata: {
           'event': 'start',
           'job_uuid': input[:job_uuid],
-          'username': execution_plan_id,
-          'password': otp_password,
           'return_url': "#{input[:proxy_url]}/ssh/jobs/#{input[:job_uuid]}/update",
           'version': 'v1',
           'effective_user': input[:effective_user]
@@ -206,6 +198,10 @@ module Proxy::RemoteExecution::Ssh::Actions
       suspend unless [READY_FOR_PICKUP, NOTIFIED].include? output[:state]
 
       kill_run 'The job was not picked up in time'
+    end
+
+    def with_mqtt?
+      ::Proxy::RemoteExecution::Ssh.with_mqtt?
     end
   end
 end
