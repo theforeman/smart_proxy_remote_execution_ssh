@@ -195,27 +195,28 @@ module Proxy::RemoteExecution::Ssh::Runners
       @output_path = File.join(File.dirname(@remote_script), 'output')
       @exit_code_path = File.join(File.dirname(@remote_script), 'exit_code')
       @pid_path = File.join(File.dirname(@remote_script), 'pid')
+      su_method = @user_method.instance_of?(SuUserMethod)
+      wrapper = <<~SCRIPT
+        if [ "$1" == "inner" ]; then
+          echo \$$ > #{@pid_path}
+          (
+            #{@user_method.cli_command_prefix}#{su_method ? "'exec #{@remote_script} < /dev/null '" : "#{@remote_script} < /dev/null"}
+            echo \$? >#{@exit_code_path}
+          ) | tee #{@output_path}
+        else
+          exec #{UNSHARE_PREFIX} "$0" inner
+        fi
+      SCRIPT
       @remote_script_wrapper = upload_data(
-        "echo $$ > #{@pid_path}; exec #{@supports_unshare ? UNSHARE_PREFIX : ''} \"$@\";",
+        wrapper,
         File.join(File.dirname(@remote_script), 'script-wrapper'),
         555)
     end
 
     # the script that initiates the execution
     def initialization_script
-      su_method = @user_method.instance_of?(SuUserMethod)
       # pipe the output to tee while capturing the exit code in a file
-      <<~SCRIPT
-        sh <<EOF | /usr/bin/tee #{@output_path}
-        #{@remote_script_wrapper} #{@user_method.cli_command_prefix}#{su_method ? "'#{@remote_script} < /dev/null '" : "#{@remote_script} < /dev/null"}
-        echo \\$?>#{@exit_code_path}
-        EOF
-        if [ -f #{@exit_code_path} ] && [ $(wc -l < #{@exit_code_path}) -gt 0 ]; then
-          exit $(cat #{@exit_code_path})
-        else
-          exit 1
-        fi
-      SCRIPT
+      @remote_script_wrapper
     end
 
     def refresh
@@ -227,7 +228,7 @@ module Proxy::RemoteExecution::Ssh::Runners
 
     def kill
       if @process_manager&.started?
-        run_sync("pkill -P $(cat #{@pid_path})")
+        run_sync("kill $(cat #{@pid_path})")
       else
         logger.debug('connection closed')
       end
