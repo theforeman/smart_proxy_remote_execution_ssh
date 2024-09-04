@@ -185,7 +185,7 @@ module Proxy::RemoteExecution::Ssh::Runners
       @pid_path = File.join(File.dirname(@remote_script), 'pid')
       su_method = @user_method.instance_of?(SuUserMethod)
       wrapper = <<~SCRIPT
-        if [ "$1" == "inner" ]; then
+        if [ "$1" = "inner" ]; then
           echo \$$ > #{@pid_path}
           (
             #{@user_method.cli_command_prefix}#{su_method ? "'exec #{@remote_script} < /dev/null '" : "#{@remote_script} < /dev/null"}
