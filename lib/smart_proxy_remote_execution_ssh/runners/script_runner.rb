@@ -191,6 +191,11 @@ module Proxy::RemoteExecution::Ssh::Runners
             #{@user_method.cli_command_prefix}#{su_method ? "'exec #{@remote_script} < /dev/null '" : "#{@remote_script} < /dev/null"}
             echo \$? >#{@exit_code_path}
           ) | tee #{@output_path}
+          if [ -f #{@exit_code_path} ] && [ $(wc -l < #{@exit_code_path}) -gt 0 ]; then
+            exit $(cat #{@exit_code_path})
+          else
+            exit 1
+          fi
         else
           UNSHARE=''
           if #{UNSHARE_PREFIX} true >/dev/null 2>/dev/null; then
