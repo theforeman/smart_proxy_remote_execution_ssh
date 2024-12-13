@@ -97,7 +97,7 @@ module Proxy::RemoteExecution::Ssh::Actions
         type = update['type']
         case type
         when 'output'
-          continuous_output.add_output(update['content'], update['stream'], time)
+          continuous_output.add_output(update['content'], update['stream'], timestamp: time)
         when 'exit'
           exit_code = update['exit_code'].to_i
         else
