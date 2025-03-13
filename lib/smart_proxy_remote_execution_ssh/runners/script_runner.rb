@@ -168,6 +168,7 @@ module Proxy::RemoteExecution::Ssh::Runners
         error: 'Failed to execute script on remote machine, exit code: %{exit_code}.'
       )
       unless @user_method.is_a? NoopUserMethod
+        ensure_effective_user_access(script)
         ensure_remote_command("#{@user_method.cli_command_prefix} #{script}",
                               error: 'Failed to change to effective user, exit code: %{exit_code}',
                               tty: true,
@@ -207,6 +208,8 @@ module Proxy::RemoteExecution::Ssh::Runners
       @remote_script_wrapper = upload_data(
         wrapper,
         File.join(File.dirname(@remote_script), 'script-wrapper'))
+      ensure_effective_user_access(@remote_script_wrapper, @remote_script)
+      @remote_script_wrapper
     end
 
     # the script that initiates the execution
@@ -411,6 +414,12 @@ module Proxy::RemoteExecution::Ssh::Runners
 
       if EXPECTED_POWER_ACTION_MESSAGES.any? { |message| last_output['output'] =~ /^#{message}/ }
         @expecting_disconnect = true
+      end
+    end
+
+    def ensure_effective_user_access(*paths)
+      unless @user_method.is_a? NoopUserMethod
+        ensure_remote_command("setfacl -m u:#{@user_method.effective_user}:rx #{paths.join(' ')}")
       end
     end
   end
