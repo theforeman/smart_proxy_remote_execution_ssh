@@ -206,8 +206,7 @@ module Proxy::RemoteExecution::Ssh::Runners
       SCRIPT
       @remote_script_wrapper = upload_data(
         wrapper,
-        File.join(File.dirname(@remote_script), 'script-wrapper'),
-        555)
+        File.join(File.dirname(@remote_script), 'script-wrapper'))
     end
 
     # the script that initiates the execution
@@ -354,10 +353,10 @@ module Proxy::RemoteExecution::Ssh::Runners
     def cp_script_to_remote(script = @script, name = 'script')
       path = remote_command_file(name)
       @logger.debug("copying script to #{path}:\n#{indent_multiline(script)}")
-      upload_data(sanitize_script(script), path, 555)
+      upload_data(sanitize_script(script), path)
     end
 
-    def upload_data(data, path, permissions = 555)
+    def upload_data(data, path, permissions = 500)
       ensure_remote_directory File.dirname(path)
       # We use tee here to pipe stdin coming from ssh to a file at $path, while silencing its output
       # This is used to write to $path with elevated permissions, solutions using cat and output redirection
