@@ -209,6 +209,8 @@ module Proxy::RemoteExecution::Ssh::Runners
         wrapper,
         File.join(File.dirname(@remote_script), 'script-wrapper'))
       ensure_effective_user_access(@remote_script_wrapper, @remote_script)
+      upload_data('', @output_path, 600)
+      ensure_effective_user_access(@output_path, mode: 'rw')
       @remote_script_wrapper
     end
 
@@ -417,9 +419,9 @@ module Proxy::RemoteExecution::Ssh::Runners
       end
     end
 
-    def ensure_effective_user_access(*paths)
+    def ensure_effective_user_access(*paths, mode: 'rx')
       unless @user_method.is_a? NoopUserMethod
-        ensure_remote_command("setfacl -m u:#{@user_method.effective_user}:rx #{paths.join(' ')}")
+        ensure_remote_command("setfacl -m u:#{@user_method.effective_user}:#{mode} #{paths.join(' ')}")
       end
     end
   end
