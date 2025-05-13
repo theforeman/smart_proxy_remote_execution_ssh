@@ -30,6 +30,8 @@ Gem::Specification.new do |gem|
   gem.add_development_dependency('rack-test', '~> 0')
   gem.add_development_dependency('rubocop', '~> 0.82.0')
 
+  gem.add_runtime_dependency('ed25519', '>= 1.2', '< 2.0')
+  gem.add_runtime_dependency('bcrypt_pbkdf', '>= 1.0', '< 2.0')
   gem.add_runtime_dependency('smart_proxy_dynflow', '~> 0.9', '>= 0.9.4')
   gem.add_runtime_dependency('net-ssh', '~> 7.2')
   gem.add_runtime_dependency('mqtt', '~> 0.5')
