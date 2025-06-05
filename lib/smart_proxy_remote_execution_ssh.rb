@@ -21,6 +21,15 @@ module Proxy::RemoteExecution
         File.expand_path("#{private_key_file}.pub")
       end
 
+      def cert_file
+        File.expand_path("#{private_key_file}-cert.pub")
+      end
+
+      def ca_public_key_file
+        path = Plugin.settings.ssh_user_ca_public_key_file
+        File.expand_path(path) if present?(path)
+      end
+
       def validate_mode!
         Plugin.settings.mode = Plugin.settings.mode.to_sym
 
@@ -50,12 +59,21 @@ module Proxy::RemoteExecution
         end
 
         unless File.exist?(private_key_file)
-          raise "SSH public key file #{private_key_file} doesn't exist.\n"\
+          raise "SSH private key file #{private_key_file} doesn't exist.\n"\
             "You can generate one with `ssh-keygen -t rsa -b 4096 -f #{private_key_file} -N ''`"
         end
 
         unless File.exist?(public_key_file)
           raise "SSH public key file #{public_key_file} doesn't exist"
+        end
+
+        if present?(Plugin.settings.ssh_user_ca_public_key_file)
+          { ca_public_key_file: 'CA public key', cert_file: 'certificate' }.each do |file, label|
+            file_path = public_send(file)
+            unless file_path && File.exist?(file_path)
+              raise "SSH #{label} file '#{file_path}' doesn't exist"
+            end
+          end
         end
 
         validate_ssh_log_level!
@@ -99,6 +117,12 @@ module Proxy::RemoteExecution
 
       def with_mqtt?
         Proxy::RemoteExecution::Ssh::Plugin.settings.mode == :'pull-mqtt'
+      end
+
+      private
+
+      def present?(value)
+        value && !value.empty?
       end
     end
   end
