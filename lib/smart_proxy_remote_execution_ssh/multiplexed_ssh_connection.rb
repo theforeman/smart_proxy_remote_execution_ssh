@@ -60,6 +60,8 @@ module Proxy::RemoteExecution::Ssh::Runners
       @host_public_key = options.fetch(:host_public_key, nil)
       @verify_host = options.fetch(:verify_host, nil)
       @client_private_key_file = settings.ssh_identity_key_file
+      @client_ca_known_hosts_file = settings.ssh_ca_known_hosts_file
+      @client_cert_file = Proxy::RemoteExecution::Ssh.cert_file if File.exist?(Proxy::RemoteExecution::Ssh.cert_file)
 
       @local_working_dir = options.fetch(:local_working_dir, settings.local_working_dir)
       @socket_working_dir = options.fetch(:socket_working_dir, settings.socket_working_dir)
@@ -154,9 +156,14 @@ module Proxy::RemoteExecution::Ssh::Runners
       ssh_options << "-o User=#{@ssh_user}"
       ssh_options << "-o Port=#{@ssh_port}" if @ssh_port
       ssh_options << "-o IdentityFile=#{@client_private_key_file}" if @client_private_key_file
+      ssh_options << "-o CertificateFile=#{@client_cert_file}" if @client_cert_file
       ssh_options << "-o IdentitiesOnly=yes"
-      ssh_options << "-o StrictHostKeyChecking=accept-new"
-      ssh_options << "-o UserKnownHostsFile=#{prepare_known_hosts}" if @host_public_key
+      ssh_options << "-o StrictHostKeyChecking=#{@client_ca_known_hosts_file ? 'yes' : 'accept-new'}"
+      if @host_public_key
+        ssh_options << "-o UserKnownHostsFile=#{prepare_known_hosts}"
+      elsif @client_ca_known_hosts_file
+        ssh_options << "-o UserKnownHostsFile=#{@client_ca_known_hosts_file}"
+      end
       ssh_options << "-o LogLevel=#{ssh_log_level(true)}"
       ssh_options << "-o ControlMaster=auto"
       ssh_options << "-o ControlPath=#{socket_file}"

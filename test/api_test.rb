@@ -41,6 +41,13 @@ module Proxy::RemoteExecution::Ssh
       end
     end
 
+    describe '/ca_pubkey' do
+      it 'returns the content of the CA public key' do
+        get '/ca_pubkey'
+        _(last_response.body).must_equal '===ca-public-key==='
+      end
+    end
+
     describe 'job storage' do
       let(:uuid) { SecureRandom.uuid }
       let(:execution_plan_uuid) { SecureRandom.uuid }
