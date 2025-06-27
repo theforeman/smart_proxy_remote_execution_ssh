@@ -13,6 +13,12 @@ module Proxy::RemoteExecution
         File.read(Ssh.public_key_file)
       end
 
+      get "/ca_pubkey" do
+        if Ssh.ca_public_key_file
+          File.read(Ssh.ca_public_key_file)
+        end
+      end
+
       if Proxy::RemoteExecution::Ssh::Plugin.settings.cockpit_integration
         post "/session" do
           do_authorize_any
