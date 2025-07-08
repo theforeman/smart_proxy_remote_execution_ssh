@@ -168,6 +168,7 @@ module Proxy::RemoteExecution::Ssh::Runners
         error: 'Failed to execute script on remote machine, exit code: %{exit_code}.'
       )
       unless @user_method.is_a? NoopUserMethod
+        ensure_effective_user_access(script)
         ensure_remote_command("#{@user_method.cli_command_prefix} #{script}",
                               error: 'Failed to change to effective user, exit code: %{exit_code}',
                               tty: true,
@@ -206,8 +207,11 @@ module Proxy::RemoteExecution::Ssh::Runners
       SCRIPT
       @remote_script_wrapper = upload_data(
         wrapper,
-        File.join(File.dirname(@remote_script), 'script-wrapper'),
-        555)
+        File.join(File.dirname(@remote_script), 'script-wrapper'))
+      ensure_effective_user_access(@remote_script_wrapper, @remote_script)
+      upload_data('', @output_path, 600)
+      ensure_effective_user_access(@output_path, mode: 'rw')
+      @remote_script_wrapper
     end
 
     # the script that initiates the execution
@@ -354,10 +358,10 @@ module Proxy::RemoteExecution::Ssh::Runners
     def cp_script_to_remote(script = @script, name = 'script')
       path = remote_command_file(name)
       @logger.debug("copying script to #{path}:\n#{indent_multiline(script)}")
-      upload_data(sanitize_script(script), path, 555)
+      upload_data(sanitize_script(script), path)
     end
 
-    def upload_data(data, path, permissions = 555)
+    def upload_data(data, path, permissions = 500)
       ensure_remote_directory File.dirname(path)
       # We use tee here to pipe stdin coming from ssh to a file at $path, while silencing its output
       # This is used to write to $path with elevated permissions, solutions using cat and output redirection
@@ -412,6 +416,12 @@ module Proxy::RemoteExecution::Ssh::Runners
 
       if EXPECTED_POWER_ACTION_MESSAGES.any? { |message| last_output['output'] =~ /^#{message}/ }
         @expecting_disconnect = true
+      end
+    end
+
+    def ensure_effective_user_access(*paths, mode: 'rx')
+      unless @user_method.is_a? NoopUserMethod
+        ensure_remote_command("setfacl -m u:#{@user_method.effective_user}:#{mode} #{paths.join(' ')}")
       end
     end
   end
