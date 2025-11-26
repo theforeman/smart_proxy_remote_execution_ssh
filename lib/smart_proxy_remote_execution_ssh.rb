@@ -27,20 +27,6 @@ module Proxy::RemoteExecution
         unless Plugin::MODES.include? Plugin.settings.mode
           raise "Mode has to be one of #{Plugin::MODES.join(', ')}, given #{Plugin.settings.mode}"
         end
-
-        if Plugin.settings.async_ssh
-          Plugin.logger.warn('Option async_ssh is deprecated, use ssh-async mode instead.')
-
-          case Plugin.settings.mode
-          when :ssh
-            Plugin.logger.warn('Deprecated option async_ssh used together with ssh mode, switching mode to ssh-async.')
-            Plugin.settings.mode = :'ssh-async'
-          when :'ssh-async'
-            # This is a noop
-          else
-            Plugin.logger.warn('Deprecated option async_ssh used together with incompatible mode, ignoring.')
-          end
-        end
       end
 
       def validate_mqtt_settings!
@@ -97,11 +83,11 @@ module Proxy::RemoteExecution
       end
 
       def requires_configured_ssh?
-        %i[ssh ssh-async].include?(Plugin.settings.mode) || Plugin.settings.cockpit_integration
+        Plugin.settings.mode == :ssh || Plugin.settings.cockpit_integration
       end
 
       def validate_socket_path!
-        return unless Plugin.settings.mode == :'ssh' || Plugin.settings.mode == :'ssh-async'
+        return unless Plugin.settings.mode == :'ssh'
 
         socket_path = File.expand_path(Plugin.settings.socket_working_dir)
         raise "Socket path #{socket_path} is too long" if socket_path.length > Plugin::SOCKET_PATH_MAX_LENGTH

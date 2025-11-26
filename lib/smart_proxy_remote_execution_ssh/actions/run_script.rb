@@ -7,7 +7,7 @@ module Proxy::RemoteExecution::Ssh
       def plan(*args)
         mode = Proxy::RemoteExecution::Ssh::Plugin.settings.mode
         case mode
-        when :ssh, :'ssh-async'
+        when :ssh
           plan_action(ScriptRunner, *args)
         when :pull, :'pull-mqtt'
           plan_action(PullScript, *args)
