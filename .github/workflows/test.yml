@@ -10,6 +10,8 @@ jobs:
   rubocop:
     name: Rubocop
     uses: theforeman/actions/.github/workflows/rubocop.yml@v0
+    with:
+      ruby: 3.0
 
   test:
     name: Tests
