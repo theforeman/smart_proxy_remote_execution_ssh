@@ -1,7 +1,7 @@
 module Proxy
   module RemoteExecution
     module Ssh
-      VERSION = '0.11.7'
+      VERSION = '1.0.0'
     end
   end
 end
