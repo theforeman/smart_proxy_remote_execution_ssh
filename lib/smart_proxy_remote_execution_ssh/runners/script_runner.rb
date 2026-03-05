@@ -420,8 +420,13 @@ module Proxy::RemoteExecution::Ssh::Runners
     end
 
     def ensure_effective_user_access(*paths, mode: 'rx')
-      unless @user_method.is_a? NoopUserMethod
-        ensure_remote_command("setfacl -m u:#{@user_method.effective_user}:#{mode} #{paths.join(' ')}")
+      return if @user_method.is_a?(NoopUserMethod) || @user_method.effective_user == 'root'
+
+      paths_str = paths.join(' ')
+      if @user_method.ssh_user == 'root'
+        ensure_remote_command("chown #{@user_method.effective_user} #{paths_str} && chmod u=#{mode} #{paths_str}")
+      else
+        ensure_remote_command("setfacl -m u:#{@user_method.effective_user}:#{mode} #{paths_str}")
       end
     end
   end
