@@ -113,7 +113,7 @@ module Proxy::RemoteExecution::Ssh::Runners
 
       @client_private_key_file = settings.ssh_identity_key_file
       @local_working_dir = options.fetch(:local_working_dir, settings.local_working_dir)
-      @remote_working_dir = options.fetch(:remote_working_dir, settings.remote_working_dir.shellescape)
+      @remote_working_dir = absolute_path!(options.fetch(:remote_working_dir, settings.remote_working_dir)).shellescape
       @socket_working_dir = options.fetch(:socket_working_dir, settings.socket_working_dir)
       @cleanup_working_dirs = options.fetch(:cleanup_working_dirs, settings.cleanup_working_dirs)
       @first_execution = options.fetch(:first_execution, false)
@@ -273,6 +273,13 @@ module Proxy::RemoteExecution::Ssh::Runners
 
     def indent_multiline(string)
       string.lines.map { |line| "  | #{line}" }.join
+    end
+
+    def absolute_path!(path)
+      path = path.to_s.strip
+      raise "Remote working directory '#{path}' is not an absolute path" unless Pathname.new(path).absolute?
+
+      path
     end
 
     def should_cleanup?
