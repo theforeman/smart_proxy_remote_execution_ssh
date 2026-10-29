@@ -28,7 +28,10 @@ Gem::Specification.new do |gem|
   gem.add_development_dependency('mocha', '~> 2.0')
   gem.add_development_dependency('webmock', '~> 1')
   gem.add_development_dependency('rack-test', '~> 0')
-  gem.add_development_dependency('rubocop', '~> 0.82.0')
+  gem.add_development_dependency('rubocop', '~> 1.28.0')
+
+  # MultiJson 1.19 passes JSON parser options positionally; JSON 3.x requires keywords.
+  gem.add_runtime_dependency('json', '>= 2.0', '< 3.0')
 
   gem.add_runtime_dependency('ed25519', '>= 1.2', '< 2.0')
   gem.add_runtime_dependency('bcrypt_pbkdf', '>= 1.0', '< 2.0')
