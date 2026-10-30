@@ -1,4 +1,5 @@
 require 'test_helper'
+require 'json'
 require 'tempfile'
 require 'smart_proxy_remote_execution_ssh/actions/pull_script'
 require 'smart_proxy_remote_execution_ssh/job_storage'
@@ -165,7 +166,7 @@ module Proxy::RemoteExecution::Ssh
 
           get '/jobs'
           _(last_response.status).must_equal 200
-          data = MultiJson.load(last_response.body)
+          data = JSON.parse(last_response.body)
           _(data).must_equal [uuid]
         end
       end
