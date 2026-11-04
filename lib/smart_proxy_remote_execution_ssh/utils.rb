@@ -4,7 +4,8 @@ module Proxy::RemoteExecution
   module Utils
     class << self
       def prune_known_hosts!(hostname, port, logger = Logger.new($stdout))
-        return if Net::SSH::KnownHosts.search_for(hostname).empty?
+        known_hosts = File.expand_path('~/.ssh/known_hosts')
+        return unless File.file?(known_hosts)
 
         target = if port == 22
                    hostname
@@ -12,12 +13,10 @@ module Proxy::RemoteExecution
                    "[#{hostname}]:#{port}"
                  end
 
-        Open3.popen3('ssh-keygen', '-R', target) do |_stdin, stdout, _stderr, wait_thr|
-          wait_thr.join
-          stdout.read
-        end
+        _stdout, stderr, status = Open3.capture3('ssh-keygen', '-R', target, '-f', known_hosts)
+        logger.warn("Could not remove #{target} from known_hosts: #{stderr.strip}") unless status.success?
       rescue Errno::ENOENT => e
-        logger.warn("Could not remove #{hostname} from know_hosts: #{e}")
+        logger.warn("Could not remove #{target} from known_hosts: #{e}")
       end
     end
   end

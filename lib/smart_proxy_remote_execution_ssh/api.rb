@@ -1,4 +1,3 @@
-require 'net/ssh'
 require 'base64'
 require 'smart_proxy_dynflow/runner'
 

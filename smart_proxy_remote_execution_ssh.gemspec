@@ -33,9 +33,6 @@ Gem::Specification.new do |gem|
   # MultiJson 1.19 passes JSON parser options positionally; JSON 3.x requires keywords.
   gem.add_runtime_dependency('json', '>= 2.0', '< 3.0')
 
-  gem.add_runtime_dependency('ed25519', '>= 1.2', '< 2.0')
-  gem.add_runtime_dependency('bcrypt_pbkdf', '>= 1.0', '< 2.0')
   gem.add_runtime_dependency('smart_proxy_dynflow', '>= 0.9.4', '< 2.0.0')
-  gem.add_runtime_dependency('net-ssh', '~> 7.2')
   gem.add_runtime_dependency('mqtt', '~> 0.5')
 end

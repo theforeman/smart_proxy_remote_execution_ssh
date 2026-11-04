@@ -37,6 +37,9 @@ Install the dependencies
 
     $ bundle
 
+SSH push jobs and Cockpit sessions require the OpenSSH client commands `ssh` and
+`ssh-keygen`. Password and key passphrase authentication also require `sshpass`.
+
 ## Usage
 
 To configure this plugin you can use template from settings.d/remote_execution_ssh.yml.example.
