@@ -1,5 +1,8 @@
 require 'smart_proxy_dynflow'
 require 'smart_proxy_remote_execution_ssh/version'
+# Dynflow can restore persisted execution plans while plugins are activating.
+# Load their action classes before its executor starts processing those plans.
+require 'smart_proxy_remote_execution_ssh/actions'
 require 'smart_proxy_remote_execution_ssh/plugin'
 require 'smart_proxy_remote_execution_ssh/webrick_ext'
 
